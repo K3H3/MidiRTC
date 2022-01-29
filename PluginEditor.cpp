@@ -32,6 +32,8 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor&
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (340, 300);
+
+
     
     Configuration config;
 
@@ -61,9 +63,18 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor&
     midiOutputVolumeSlider.setTextValueSuffix(" Received Midi");
     midiOutputVolumeSlider.setValue(1.0);
 
-    addAndMakeVisible(&ownIdLabel);
+    //addAndMakeVisible(&localIdLabel);
+    //addAndMakeVisible(&partnerIdLabel);
     addAndMakeVisible(&midiInputVolumeSlider);
     addAndMakeVisible(&midiOutputVolumeSlider);
+
+    //partnerIdText.
+
+    addAndMakeVisible(&localIdText);
+    addAndMakeVisible(&partnerIdText);
+    //partnerIdText.setEditable(true);
+    //partnerIdText.setColour(juce::Label::backgroundColourId, juce::Colours::darkblue);
+   // partnerIdText.onTextChange = [this] { uppercaseText.setText(partnerIdText.getText().toUpperCase(), juce::dontSendNotification); };
 
     midiInputVolumeSlider.addListener(this);
     midiOutputVolumeSlider.addListener(this);
@@ -71,7 +82,8 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor&
 
 MidiRTCAudioProcessorEditor::~MidiRTCAudioProcessorEditor()
 {
-    ownIdLabel.setLookAndFeel(nullptr);
+    localIdLabel.setLookAndFeel(nullptr);
+    partnerIdLabel.setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -86,14 +98,11 @@ void MidiRTCAudioProcessorEditor::paint (juce::Graphics& g)
     using namespace juce;
     int topPadding = 14;
 
-    String generalDescription{ "Real time midi connector" };
-    String localIdDescription{ "Your local ID is: " + localId };
-    String otherIdDescription{ "Put partner ID here to connect: " };
 
-    auto bounds = getLocalBounds();
-    auto headerArea = bounds.removeFromTop(bounds.getHeight() * 0.1);
-    auto settingsArea = bounds.removeFromTop(bounds.getHeight() * 0.25);
-    auto inputVolumeArea = bounds.removeFromLeft(bounds.getWidth() * 0.5);
+
+    String generalDescription{ "Real time midi connector" };
+    String localIdLabelDescription{ "Local ID: " };
+    String partnerIdLabelDescription{ "Partner ID: " };
 
     //draw background
     g.fillAll(Colours::myYellow);
@@ -105,58 +114,73 @@ void MidiRTCAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawFittedText(generalDescription, 0, 0, getWidth(), getHeight(), Justification::centredTop, 1);
     
     //draw info and ID field
-    ownIdLabel.setColour(Label::textColourId, Colours::black);
-    ownIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
-    ownIdLabel.setText(localIdDescription, dontSendNotification);
+    localIdLabel.attachToComponent(&localIdText, true);
+    localIdLabel.setColour(Label::textColourId, Colours::black);
+    //localIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
+    localIdLabel.setText(localIdLabelDescription, dontSendNotification);
+    localIdLabel.setJustificationType(Justification::centred);
+
+    localIdText.setColour(TextEditor::highlightedTextColourId, Colours::black);
+    localIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
+    localIdText.setColour(TextEditor::highlightColourId, Colours::transparentBlack);
+    localIdText.setFont(Font(17.f, Font::plain));
+    localIdText.setText(localId, dontSendNotification);
+    localIdText.setReadOnly(true);
+    localIdText.setCaretVisible(false);
+    localIdText.selectAll();
+    localIdText.copy();
     
-    otherIdLabel.setColour(Label::textColourId, Colours::black);
-    otherIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
-    otherIdLabel.setText(otherIdDescription, dontSendNotification);
+    partnerIdLabel.attachToComponent(&partnerIdText, true);
+    partnerIdLabel.setColour(Label::textColourId, Colours::black);
+    //partnerIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
+    partnerIdLabel.setText(partnerIdLabelDescription, dontSendNotification);
+    partnerIdLabel.setJustificationType(Justification::centred);
 
-    //ownInfoLabel.attachToComponent(&ownIdLabel, false);
+    //partnerIdText.setEditable(true);
+    //partnerIdText.setColour(Label::backgroundColourId, Colours::cornflowerblue);
+    partnerIdText.setColour(TextEditor::textColourId, Colours::black);
+    partnerIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
+    partnerIdText.setFont(Font(17.f, Font::plain));
+    partnerIdText.setInputRestrictions(4);
 
+    g.setColour(Colours::cornflowerblue);
+    g.fillRect(localIdArea);
+    g.fillRect(partnerIdArea);
 
-    /*idInputLabel.setText(otherIdDescription, dontSendNotification);
-    idInputLabel.attachToComponent(&ownIdLabel, false);
-    idInputLabel.setColour(Label::textColourId, Colours::black);
-    idInputLabel.setFont(Font(17.f, Font::plain));
-    idInputLabel.setJustificationType(Justification::centred);
-    idInputLabel.setEditable(true);
-    */
     //draw input field
-    juce::Rectangle <int> inputArea(inputVolumeArea);
     g.setColour(Colours::myBlue);
-    g.fillRect(inputArea);
+    g.fillRect(inputVolumeArea);
+
     
     //draw external field
     g.setColour(Colours::myPink);
-    g.fillRect(bounds);
+    g.fillRect(outputVolumeArea);
 }
 
 void MidiRTCAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
-
     using namespace juce;
-    auto bounds = getLocalBounds();
-    auto headerArea = bounds.removeFromTop(bounds.getHeight() * 0.1);
+    bounds = getLocalBounds();
+    headerArea = bounds.removeFromTop(bounds.getHeight() * 0.1);
 
-    //to be set!
-    auto settingsArea = bounds.removeFromTop(bounds.getHeight() * 0.25);
-    ownIdLabel.setBounds(settingsArea.removeFromTop(settingsArea.getHeight()*0.25));
+    settingsArea = bounds.removeFromTop(bounds.getHeight() * 0.25);
 
-    otherIdLabel.setBounds(settingsArea.removeFromTop(settingsArea.getHeight() * 0.5));
-    ownInfoLabel.setBounds(settingsArea);
-    //asdasd
-    auto inputVolumeArea = bounds.removeFromLeft(bounds.getWidth() * 0.5);
+    //localIdLabel.setBounds(settingsArea.withTrimmedBottom(settingsArea.getHeight() * 0.5));
+    //partnerIdText.setBounds(settingsArea.withTrimmedTop(settingsArea.getHeight() * 0.5).withTrimmedLeft(settingsArea.getWidth()*0.5));
+    localIdArea = settingsArea.withTrimmedBottom(settingsArea.getHeight() * 0.5);
+    localIdText.setBounds(localIdArea.withTrimmedLeft(localIdArea.getWidth() * 0.5));
+    partnerIdArea = settingsArea.withTrimmedTop(settingsArea.getHeight() * 0.5);
+    partnerIdText.setBounds(partnerIdArea.withTrimmedLeft(partnerIdArea.getWidth() * 0.5));
+    //partnerIdText.setBounds(100, 50, getWidth() - 110, 20);
+    //partnerIdText.setBounds
 
-    //auto midiInputVolumeSliderPos = inputVolumeArea.setPosition(juce::Justification::centred, 1);
-    midiInputVolumeSlider.setBounds(inputVolumeArea.removeFromLeft(inputVolumeArea.getWidth() * 0.2).reduced(3));
-    //midiInputVolumeSlider.setBounds(inputVolumeArea.getWidth() * 0.2);
+    inputVolumeArea = bounds.removeFromLeft(bounds.getWidth() * 0.5);
+    midiInputVolumeSlider.setBounds((inputVolumeArea.withTrimmedRight(inputVolumeArea.getWidth() * 0.8)).reduced(3));
 
-    auto outputVolumeArea = bounds;
-    midiOutputVolumeSlider.setBounds(outputVolumeArea.removeFromLeft(outputVolumeArea.getWidth() * 0.2).reduced(3));
+    outputVolumeArea = bounds;
+    midiOutputVolumeSlider.setBounds(outputVolumeArea.withTrimmedRight(outputVolumeArea.getWidth() * 0.8).reduced(3));
 }
 
 //13.12 HALBFERTIG

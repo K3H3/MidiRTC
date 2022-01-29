@@ -51,9 +51,10 @@ private:
 
     CustomVolumeSlider midiInputVolumeSlider, midiOutputVolumeSlider;
 
-    Label ownIdLabel, otherIdLabel, ownInfoLabel;
+    Label localIdLabel, partnerIdLabel;
+    TextEditor localIdText, partnerIdText;
 
-    TextEditor labelEditor;
+    Rectangle<int> bounds, headerArea, settingsArea, localIdArea, partnerIdArea, inputVolumeArea, outputVolumeArea;
 
     //LookAndFeel lnf;
 
