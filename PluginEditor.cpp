@@ -15,15 +15,7 @@ using namespace std;
 string localId;
 
 
-void generateLocalId(size_t length) {
-    static const string characters(
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-    string id(length, '0');
-    default_random_engine rng(random_device{}());
-    uniform_int_distribution<int> dist(0, int(characters.size() - 1));
-    generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
-    localId = id;
-}
+
 
 //==============================================================================
 MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor& p)
@@ -63,8 +55,6 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor&
     midiOutputVolumeSlider.setTextValueSuffix(" Received Midi");
     midiOutputVolumeSlider.setValue(1.0);
 
-    //addAndMakeVisible(&localIdLabel);
-    //addAndMakeVisible(&partnerIdLabel);
     addAndMakeVisible(&midiInputVolumeSlider);
     addAndMakeVisible(&midiOutputVolumeSlider);
 
@@ -72,9 +62,6 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor (MidiRTCAudioProcessor&
 
     addAndMakeVisible(&localIdText);
     addAndMakeVisible(&partnerIdText);
-    //partnerIdText.setEditable(true);
-    //partnerIdText.setColour(juce::Label::backgroundColourId, juce::Colours::darkblue);
-   // partnerIdText.onTextChange = [this] { uppercaseText.setText(partnerIdText.getText().toUpperCase(), juce::dontSendNotification); };
 
     midiInputVolumeSlider.addListener(this);
     midiOutputVolumeSlider.addListener(this);
@@ -84,6 +71,17 @@ MidiRTCAudioProcessorEditor::~MidiRTCAudioProcessorEditor()
 {
     localIdLabel.setLookAndFeel(nullptr);
     partnerIdLabel.setLookAndFeel(nullptr);
+}
+
+//==============================================================================
+void generateLocalId(size_t length) {
+    static const string characters(
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    string id(length, '0');
+    default_random_engine rng(random_device{}());
+    uniform_int_distribution<int> dist(0, int(characters.size() - 1));
+    generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
+    localId = id;
 }
 
 //==============================================================================
@@ -116,7 +114,6 @@ void MidiRTCAudioProcessorEditor::paint (juce::Graphics& g)
     //draw info and ID field
     localIdLabel.attachToComponent(&localIdText, true);
     localIdLabel.setColour(Label::textColourId, Colours::black);
-    //localIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
     localIdLabel.setText(localIdLabelDescription, dontSendNotification);
     localIdLabel.setJustificationType(Justification::centred);
 
@@ -132,12 +129,10 @@ void MidiRTCAudioProcessorEditor::paint (juce::Graphics& g)
     
     partnerIdLabel.attachToComponent(&partnerIdText, true);
     partnerIdLabel.setColour(Label::textColourId, Colours::black);
-    //partnerIdLabel.setColour(Label::backgroundColourId, Colours::cornflowerblue);
     partnerIdLabel.setText(partnerIdLabelDescription, dontSendNotification);
     partnerIdLabel.setJustificationType(Justification::centred);
 
-    //partnerIdText.setEditable(true);
-    //partnerIdText.setColour(Label::backgroundColourId, Colours::cornflowerblue);
+
     partnerIdText.setColour(TextEditor::textColourId, Colours::black);
     partnerIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
     partnerIdText.setFont(Font(17.f, Font::plain));
@@ -167,14 +162,10 @@ void MidiRTCAudioProcessorEditor::resized()
 
     settingsArea = bounds.removeFromTop(bounds.getHeight() * 0.25);
 
-    //localIdLabel.setBounds(settingsArea.withTrimmedBottom(settingsArea.getHeight() * 0.5));
-    //partnerIdText.setBounds(settingsArea.withTrimmedTop(settingsArea.getHeight() * 0.5).withTrimmedLeft(settingsArea.getWidth()*0.5));
     localIdArea = settingsArea.withTrimmedBottom(settingsArea.getHeight() * 0.5);
     localIdText.setBounds(localIdArea.withTrimmedLeft(localIdArea.getWidth() * 0.5));
     partnerIdArea = settingsArea.withTrimmedTop(settingsArea.getHeight() * 0.5);
     partnerIdText.setBounds(partnerIdArea.withTrimmedLeft(partnerIdArea.getWidth() * 0.5));
-    //partnerIdText.setBounds(100, 50, getWidth() - 110, 20);
-    //partnerIdText.setBounds
 
     inputVolumeArea = bounds.removeFromLeft(bounds.getWidth() * 0.5);
     midiInputVolumeSlider.setBounds((inputVolumeArea.withTrimmedRight(inputVolumeArea.getWidth() * 0.8)).reduced(3));
