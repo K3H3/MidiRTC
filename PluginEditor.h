@@ -12,16 +12,7 @@
 #include "PluginProcessor.h"
 
 using namespace juce;
-//struct LookAndFeel : LookAndFeel_V4
-//{
-//    void drawLinearSlider(Graphics&,
-//        int x, int y, int width, int height,
-//        float sliderPos,
-//        float minSliderPos,
-//        float maxSliderPos,
-//        const Slider::SliderStyle,
-//        Slider&) override;
-//};
+
 
 struct CustomVolumeSlider : Slider
 {
@@ -31,6 +22,8 @@ struct CustomVolumeSlider : Slider
     }
 };
 //==============================================================================
+
+void generateLocalId(size_t length);
 
 class MidiRTCAudioProcessorEditor  :    public AudioProcessorEditor,
                                         private Slider::Listener
@@ -48,12 +41,12 @@ private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     MidiRTCAudioProcessor& audioProcessor;
-
     CustomVolumeSlider midiInputVolumeSlider, midiOutputVolumeSlider;
-
     Label localIdLabel, partnerIdLabel;
     TextEditor localIdText, partnerIdText;
 
+    string localId;
+    
     Rectangle<int> bounds, headerArea, settingsArea, localIdArea, partnerIdArea, inputVolumeArea, outputVolumeArea;
 
     //LookAndFeel lnf;
@@ -61,3 +54,13 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessorEditor)
 };
 
+//struct LookAndFeel : LookAndFeel_V4
+//{
+//    void drawLinearSlider(Graphics&,
+//        int x, int y, int width, int height,
+//        float sliderPos,
+//        float minSliderPos,
+//        float maxSliderPos,
+//        const Slider::SliderStyle,
+//        Slider&) override;
+//};

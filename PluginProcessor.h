@@ -27,11 +27,14 @@
 #include <thread>
 #include <unordered_map>
 
+void generateLocalId(size_t length);
+
 
 class MidiRTCAudioProcessor  : public juce::AudioProcessor
 {
 public:
     float noteOnVel;
+    
     //==============================================================================
     MidiRTCAudioProcessor();
     ~MidiRTCAudioProcessor() override;
