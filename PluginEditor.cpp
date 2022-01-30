@@ -11,7 +11,7 @@
 
 using namespace rtc;
 using namespace std;
-
+/*
 String localId;
 
 void generateLocalId(size_t length) {
@@ -23,6 +23,7 @@ void generateLocalId(size_t length) {
 	generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
 	localId = id;
 }
+*/
 
 //==============================================================================
 MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor(MidiRTCAudioProcessor& p)
@@ -32,7 +33,7 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor(MidiRTCAudioProcessor& 
 	// editor's size to whatever you need it to be.
 	setSize(340, 300);
 
-	generateLocalId(4);
+	//generateLocalId(4);
 
 	midiInputVolumeSlider.setRange(0.0, 127.0, 1.0);
 	midiInputVolumeSlider.setPopupDisplayEnabled(true, false, this);
@@ -98,7 +99,8 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	localIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	localIdText.setColour(TextEditor::highlightColourId, Colours::transparentBlack);
 	localIdText.setFont(Font(17.f, Font::plain));
-	localIdText.setText(localId, dontSendNotification);
+	//localIdText.setText(localId, dontSendNotification);
+	localIdText.setText(audioProcessor.getLocalId(), dontSendNotification);
 	localIdText.setReadOnly(true);
 	localIdText.setCaretVisible(false);
 	localIdText.selectAll();

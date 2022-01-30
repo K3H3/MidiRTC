@@ -23,7 +23,7 @@ struct CustomVolumeSlider : Slider
 };
 //==============================================================================
 
-void generateLocalId(size_t length);
+//void generateLocalId(size_t length);
 
 class MidiRTCAudioProcessorEditor  :    public AudioProcessorEditor,
                                         private Slider::Listener
@@ -45,7 +45,7 @@ private:
     Label localIdLabel, partnerIdLabel;
     TextEditor localIdText, partnerIdText;
 
-    string localId;
+    //string localId;
     
     Rectangle<int> bounds, headerArea, settingsArea, localIdArea, partnerIdArea, inputVolumeArea, outputVolumeArea;
 

@@ -27,9 +27,6 @@
 #include <thread>
 #include <unordered_map>
 
-void generateLocalId(size_t length);
-
-
 class MidiRTCAudioProcessor  : public juce::AudioProcessor
 {
 public:
@@ -72,7 +69,12 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    std::string getLocalId();
+    void setLocalId(std::string localId);
 private:
+    std::string localId;
+    std::string id;
+    void generateLocalId(size_t length);
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
 };

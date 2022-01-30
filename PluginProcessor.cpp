@@ -45,7 +45,26 @@ const int stepDurationInMs = int(1000 / STEP_COUNT_FOR_1_SEC);
 
 template <class T> weak_ptr<T> make_weak_ptr(shared_ptr<T> ptr) { return ptr; }
 
+string MidiRTCAudioProcessor::getLocalId()
+{
+    return localId;
+}
 
+void MidiRTCAudioProcessor::setLocalId(string localId)
+{
+    this->localId = localId;
+}
+
+//generate localID
+void MidiRTCAudioProcessor::generateLocalId(size_t length) {
+    static const string characters(
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    string id(length, '0');
+    default_random_engine rng(random_device{}());
+    uniform_int_distribution<int> dist(0, int(characters.size() - 1));
+    generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
+    setLocalId(id);
+}
 
 //function to create PeerConnection
 shared_ptr<PeerConnection> createPeerConnection(const Configuration& config,
@@ -269,10 +288,11 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
 
-
     Configuration config;
-    auto ws = make_shared<WebSocket>();
     string stunServer = "";
+    generateLocalId(4);
+    /*
+    auto ws = make_shared<WebSocket>();
     promise<void> wsPromise;
     auto wsFuture = wsPromise.get_future();
 
@@ -301,10 +321,6 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     auto pc = createPeerConnection(config, ws, id);
 
     //handle Websocket
-    
-    
-    
-
     ws->onOpen([&wsPromise]() {
         std::cout << "WebSocket connected, signaling ready" << endl;
         wsPromise.set_value();
@@ -362,7 +378,7 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         }
         });
 
-    
+    */
 }
 
 void MidiRTCAudioProcessor::releaseResources()
@@ -474,6 +490,8 @@ void MidiRTCAudioProcessor::setStateInformation (const void* data, int sizeInByt
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
 }
+
+
 
 //==============================================================================
 // This creates new instances of the plugin..
