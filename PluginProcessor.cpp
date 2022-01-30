@@ -290,37 +290,14 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 
     Configuration config;
     string stunServer = "";
+
     generateLocalId(4);
-    /*
+
     auto ws = make_shared<WebSocket>();
+
     promise<void> wsPromise;
     auto wsFuture = wsPromise.get_future();
 
-    //peerConnection wird erstellt (implementation oben)
-
-    //create Websocket
-    string wsPrefix = "ws://";
-
-    //"127.0.0.1:8000" hardcoded
-    //localId = randomId(4);
-    const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
-    std::cout << "Url is " << url << endl;
-    ws->open(url);
-
-    std::cout << "Waiting for signaling to be connected..." << endl;
-    wsFuture.get();
-
-    std::cout << "Enter a remote ID to send an offer:" << endl;
-    cin >> id;
-    cin.ignore();
-    if (id.empty()) {
-        // Nothing to do
-    }
-
-    std::cout << "Offering to " + id << endl;
-    auto pc = createPeerConnection(config, ws, id);
-
-    //handle Websocket
     ws->onOpen([&wsPromise]() {
         std::cout << "WebSocket connected, signaling ready" << endl;
         wsPromise.set_value();
@@ -378,6 +355,34 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         }
         });
 
+    //peerConnection wird erstellt (implementation oben)
+
+    //create Websocket
+    string wsPrefix = "ws://";
+
+    //"127.0.0.1:8000" hardcoded
+    //localId = randomId(4);
+    const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
+    std::cout << "Url is " << url << endl;
+    ws->open(url);
+    
+    std::cout << "Waiting for signaling to be connected..." << endl;
+    wsFuture.get();
+    
+    string input;
+    std::cout << "Enter a remote ID to send an offer:" << endl;
+    std::cin >> input;
+    std::cin.ignore();
+    if (input.empty()) {
+        // Nothing to do
+        std::cout << "here" << endl;
+    }
+    std::cout << "there" << endl;
+    /*
+    std::cout << "Offering to " + id << endl;
+    auto pc = createPeerConnection(config, ws, id);
+
+    //handle Websocket
     */
 }
 

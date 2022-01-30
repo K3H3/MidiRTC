@@ -11,19 +11,7 @@
 
 using namespace rtc;
 using namespace std;
-/*
-String localId;
 
-void generateLocalId(size_t length) {
-	static const string characters(
-		"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-	string id(length, '0');
-	default_random_engine rng(random_device{}());
-	uniform_int_distribution<int> dist(0, int(characters.size() - 1));
-	generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
-	localId = id;
-}
-*/
 
 //==============================================================================
 MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor(MidiRTCAudioProcessor& p)
@@ -32,8 +20,6 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor(MidiRTCAudioProcessor& 
 	// Make sure that before the constructor has finished, you've set the
 	// editor's size to whatever you need it to be.
 	setSize(340, 300);
-
-	//generateLocalId(4);
 
 	midiInputVolumeSlider.setRange(0.0, 127.0, 1.0);
 	midiInputVolumeSlider.setPopupDisplayEnabled(true, false, this);
@@ -60,8 +46,6 @@ MidiRTCAudioProcessorEditor::~MidiRTCAudioProcessorEditor()
 	localIdLabel.setLookAndFeel(nullptr);
 	partnerIdLabel.setLookAndFeel(nullptr);
 }
-
-
 
 //==============================================================================
 void MidiRTCAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
@@ -99,7 +83,6 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	localIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	localIdText.setColour(TextEditor::highlightColourId, Colours::transparentBlack);
 	localIdText.setFont(Font(17.f, Font::plain));
-	//localIdText.setText(localId, dontSendNotification);
 	localIdText.setText(audioProcessor.getLocalId(), dontSendNotification);
 	localIdText.setReadOnly(true);
 	localIdText.setCaretVisible(false);
