@@ -98,6 +98,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	partnerIdText.setFont(Font(17.f, Font::plain));
 	partnerIdText.setInputRestrictions(4);
+	partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
 
 	g.setColour(Colours::cornflowerblue);
 	g.fillRect(localIdArea);

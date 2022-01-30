@@ -50,6 +50,10 @@ string MidiRTCAudioProcessor::getLocalId()
     return localId;
 }
 
+void MidiRTCAudioProcessor::setPartnerId(string partnerId)
+{
+    this->partnerId = partnerId;
+}
 void MidiRTCAudioProcessor::setLocalId(string localId)
 {
     this->localId = localId;

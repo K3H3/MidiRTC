@@ -70,10 +70,11 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     std::string getLocalId();
-    void setLocalId(std::string localId);
+    void setPartnerId(std::string partnerId);
 private:
     std::string localId;
-    std::string id;
+    std::string partnerId;
+    void setLocalId(std::string localId);
     void generateLocalId(size_t length);
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
