@@ -71,6 +71,8 @@ public:
 
     std::string getLocalId();
     void setPartnerId(std::string partnerId);
+    //void connectToPartner();
+    
 private:
     std::string localId;
     std::string partnerId;

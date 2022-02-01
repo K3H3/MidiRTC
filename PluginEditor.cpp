@@ -39,6 +39,7 @@ MidiRTCAudioProcessorEditor::MidiRTCAudioProcessorEditor(MidiRTCAudioProcessor& 
 
 	midiInputVolumeSlider.addListener(this);
 	midiOutputVolumeSlider.addListener(this);
+
 }
 
 MidiRTCAudioProcessorEditor::~MidiRTCAudioProcessorEditor()
@@ -87,7 +88,10 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	localIdText.setReadOnly(true);
 	localIdText.setCaretVisible(false);
 	localIdText.selectAll();
-	localIdText.copy();
+
+	//to do: add copy to clipboard function on click
+	//void mouseDoubleClick (const MouseEvent&) override;
+	//localIdText.copyToClipboard();
 
 	partnerIdLabel.attachToComponent(&partnerIdText, true);
 	partnerIdLabel.setColour(Label::textColourId, Colours::black);
@@ -99,7 +103,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdText.setFont(Font(17.f, Font::plain));
 	partnerIdText.setInputRestrictions(4);
 	partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
-
+	//partnerIdText.onReturnKey = [this] { audioProcessor.MidiRTCAudioProcessor::connectToPartner(); };
 	g.setColour(Colours::cornflowerblue);
 	g.fillRect(localIdArea);
 	g.fillRect(partnerIdArea);
