@@ -75,6 +75,8 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	g.drawFittedText(generalDescription, 0, 0, getWidth(), getHeight(), Justification::centredTop, 1);
 
 	//draw info and ID field
+	//localIdLabelDescription is the field on the left
+	//localIdText ist the localId
 	localIdLabel.attachToComponent(&localIdText, true);
 	localIdLabel.setColour(Label::textColourId, Colours::black);
 	localIdLabel.setText(localIdLabelDescription, dontSendNotification);
@@ -102,8 +104,8 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	partnerIdText.setFont(Font(17.f, Font::plain));
 	partnerIdText.setInputRestrictions(4);
-	partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
-	//partnerIdText.onReturnKey = [this] { audioProcessor.MidiRTCAudioProcessor::connectToPartner(); };
+	//partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
+	partnerIdText.onReturnKey = [this] { audioProcessor.MidiRTCAudioProcessor::connectToPartner(partnerIdText.getText().toStdString()); };
 	g.setColour(Colours::cornflowerblue);
 	g.fillRect(localIdArea);
 	g.fillRect(partnerIdArea);

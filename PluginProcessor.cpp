@@ -24,8 +24,14 @@ using chrono::steady_clock;
 using json = nlohmann::json;
 
 String localId;
-string id;
 //string partnerId;
+string id;
+bool establishCon = false;
+
+
+//String partnerIdText.getText().toStdString();
+//std::string id;
+//id.toStdString();
 
 
 //shared_ptr<PeerConnection> createPeerConnection(const Configuration& config, weak_ptr<WebSocket> wws, string id);
@@ -64,8 +70,28 @@ void MidiRTCAudioProcessor::setPartnerId(string partnerId)
     this->partnerId = partnerId;
 }
 
-//void MidiRTCAudioProcessor::connectToPartner(){  //create PEERconnection here
-//};
+//void MidiRTCAudioProcessor::connectToPartner(rtc::Configuration& config,
+//    std::weak_ptr<rtc::WebSocket> wws){
+
+void MidiRTCAudioProcessor::connectToPartner(string partnerId)
+{
+    Configuration config;
+    DBG("Waiting for signaling to be connected...");
+
+    DBG("input was " + partnerId);
+    if (partnerId.empty()) {
+        DBG("no partnerId given");
+        // Nothing to do
+        return;
+    }
+    if (partnerId == localId) {
+        DBG("Invalid remote ID (This is my local ID). Exiting...");
+        return;
+    }
+
+    DBG( "Offering to " + partnerId );
+    pc = createPeerConnection(config, wws, partnerId);
+};
 
 //function to create PeerConnection
 shared_ptr<PeerConnection> createPeerConnection(const Configuration& config,
@@ -98,11 +124,11 @@ shared_ptr<PeerConnection> createPeerConnection(const Configuration& config,
 
         pc->onDataChannel([id](shared_ptr<DataChannel> dc) {
             const string label = dc->label();
-            cout << "DataChannel from " << id << " received with label \"" << label << "\"" << endl;
+            DBG( "DataChannel from " + id + " received with label \"" + label + "\"" );
         
-            cout << "###########################################" << endl;
-            cout << "### Check other peer's screen for stats ###" << endl;
-            cout << "###########################################" << endl;
+            DBG( "###########################################" );
+            DBG( "### Check other peer's screen for stats ###" );
+            DBG( "###########################################" );
 
             receivedSizeMap.emplace(dc->label(), 0);
             sentSizeMap.emplace(dc->label(), 0);
@@ -201,7 +227,6 @@ shared_ptr<PeerConnection> createPeerConnection(const Configuration& config,
         peerConnectionMap.emplace(id, pc);
         return pc;
     };
-    
 
 //generate localID
 void MidiRTCAudioProcessor::generateLocalId(size_t length) {
@@ -213,9 +238,6 @@ void MidiRTCAudioProcessor::generateLocalId(size_t length) {
     generate(id.begin(), id.end(), [&]() { return characters.at(dist(rng)); });
     setLocalId(id);
 }
-
-
-
 
 //==============================================================================
 MidiRTCAudioProcessor::MidiRTCAudioProcessor()
@@ -304,15 +326,18 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
 
-    Configuration config;
     string stunServer = "";
+    Configuration config;
+
 
     generateLocalId(4);
 
-    auto ws = make_shared<WebSocket>();
+    ws = make_shared<WebSocket>();
 
-    promise<void> wsPromise;
+    std::promise<void> wsPromise;
     auto wsFuture = wsPromise.get_future();
+
+
 
     ws->onOpen([&wsPromise]() {
         std::cout << "WebSocket connected, signaling ready" << endl;
@@ -352,9 +377,9 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
                              // vorhanden ist
         }
         else if (type == "offer") {
-            std::cout << "Answering to " + id
-                 << endl; // angegebener ID wird geantwortet -> verbindung aufgebaut
-            pc = createPeerConnection(config, ws, id); // peer connection wird erstellt
+                    //std::cout << "Answering to " + id<< endl;
+                    // angegebener ID wird geantwortet -> verbindung aufgebaut
+            pc = createPeerConnection(config, ws, partnerId); // peer connection wird erstellt
             }
         else {
             return;
@@ -371,42 +396,17 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
             pc->addRemoteCandidate(Candidate(sdp, mid));
         }
         });
-
     //peerConnection wird erstellt (implementation oben)
 
     //create Websocket
     string wsPrefix = "ws://";
 
     //"127.0.0.1:8000" hardcoded
-    //localId = randomId(4);
     const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
-    std::cout << "Url is " << url << endl;
+    DBG( "Url is " + url);
+    //own websocket is opened
     ws->open(url);
-    
-
-    
-    std::cout << "Waiting for signaling to be connected..." << endl;
     wsFuture.get();
-    
-    //std::string partnerId();
-    //setPartnerId(partnerId);
-    string input;
-    std::cout << "Enter a remote ID to send an offer:" << endl;
-    std::getline(std::cin, input);
-    id = input;
-    //std::cin >> input;
-    std::cin.ignore();
-    if (input.empty()) {
-        // Nothing to do
-        std::cout << "here" << endl;
-    }
-    
-    std::cout << "there" << endl;
-    
-    std::cout << "Offering to " + id << endl;
-    //std::cout << "Offering to " + partnerId << endl;
-    //auto pc = createPeerConnection(config, ws, id);
-    
 }
 
 void MidiRTCAudioProcessor::releaseResources()
