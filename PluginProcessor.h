@@ -32,8 +32,6 @@ class MidiRTCAudioProcessor  : public juce::AudioProcessor
 public:
     float noteOnVel;
     
-
-
     //==============================================================================
     MidiRTCAudioProcessor();
     ~MidiRTCAudioProcessor() override;
@@ -73,20 +71,21 @@ public:
 
     std::string getLocalId();
     void setPartnerId(std::string partnerId);
-    //void connectToPartner(rtc::Configuration& config,
-    //    std::weak_ptr<rtc::WebSocket> wws);
-
     void connectToPartner(std::string partnerId);
     
 private:
+    rtc::Configuration config;
     std::weak_ptr<rtc::WebSocket> wws;
-    std::shared_ptr<rtc::PeerConnection> pc;
     std::shared_ptr<rtc::WebSocket> ws;
-    //rtc::Configuration config;
-    //std::shared_ptr<rtc::PeerConnection> createPeerConnection(rtc::Configuration& config,
-    //    std::weak_ptr<rtc::WebSocket> wws, std::string id);
+    std::shared_ptr<rtc::DataChannel> dc;
+    std::shared_ptr<rtc::PeerConnection> createPeerConnection(const rtc::Configuration& config, 
+        std::weak_ptr<rtc::WebSocket> wws, std::string id);
     std::string localId;
     std::string partnerId;
+
+    //std::promise<void> wsPromise;
+    //std::future<void> wsFuture;
+
     void setLocalId(std::string localId);
     void generateLocalId(size_t length);
     //==============================================================================
