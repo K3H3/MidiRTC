@@ -3,7 +3,6 @@
 
     This file contains the basic framework code for a JUCE plugin processor.
 
-    Parts of this code were adapted and customized from Paul-Louis Ageneau (libdatachannel)
   ==============================================================================
 */
 
@@ -13,27 +12,44 @@
 
 using namespace juce;
 //==============================================================================
+//copied from client-benchmark
 
 using namespace rtc;
 using namespace std;
+
+//adapted and customized code from Paul-Louis Ageneau (libdatachannel)
 using namespace std::chrono_literals;
 using chrono::milliseconds;
 using chrono::steady_clock;
 using json = nlohmann::json;
 
-std::unordered_map<std::string, std::shared_ptr<rtc::PeerConnection>> peerConnectionMap;
-std::unordered_map<std::string, std::shared_ptr<rtc::DataChannel>> dataChannelMap;
+String localId;
+//string partnerId;
+string id;
+bool establishCon = false;
+
+
+//String partnerIdText.getText().toStdString();
+//std::string id;
+//id.toStdString();
+
+
+//shared_ptr<PeerConnection> createPeerConnection(const Configuration& config, weak_ptr<WebSocket> wws, string id);
+shared_ptr<PeerConnection> createPeerConnection(const Configuration& config, weak_ptr<WebSocket> wws, string partnerId);
+
+
+unordered_map<string, shared_ptr<PeerConnection>> peerConnectionMap;
+unordered_map<string, shared_ptr<DataChannel>> dataChannelMap;
 
 const size_t messageSize = 65535;
 binary messageData(messageSize);
 unordered_map<string, atomic<size_t>> receivedSizeMap;
 unordered_map<string, atomic<size_t>> sentSizeMap;
-
 bool noSend = false;
+
 bool enableThroughputSet;
 int throughtputSetAsKB;
 int bufferSize;
-
 const float STEP_COUNT_FOR_1_SEC = 100.0;
 const int stepDurationInMs = int(1000 / STEP_COUNT_FOR_1_SEC);
 
@@ -54,11 +70,15 @@ void MidiRTCAudioProcessor::setPartnerId(string partnerId)
     this->partnerId = partnerId;
 }
 
+//void MidiRTCAudioProcessor::connectToPartner(rtc::Configuration& config,
+//    std::weak_ptr<rtc::WebSocket> wws){
+
 void MidiRTCAudioProcessor::connectToPartner(string partnerId)
 {
-    auto pc = make_shared<PeerConnection>(config);
+    Configuration config;
     DBG("Waiting for signaling to be connected...");
 
+    DBG("input was " + partnerId);
     if (partnerId.empty()) {
         DBG("no partnerId given");
         // Nothing to do
@@ -70,306 +90,143 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
     }
 
     DBG( "Offering to " + partnerId );
-
     pc = createPeerConnection(config, wws, partnerId);
-
-    const string label = "DC-" + std::to_string(1);
-    cout << "Creating DataChannel with label \"" << label << "\"" << endl;
-    DBG("Creating DataChannel with label \"" + label + "\"");
-    auto dc = pc->createDataChannel(label);
-    receivedSizeMap.emplace(label, 0);
-    sentSizeMap.emplace(label, 0);
-
-    // Set Buffer Size
-    dc->setBufferedAmountLowThreshold(bufferSize);
-
-    dc->onOpen([partnerId, wdc = make_weak_ptr(dc), label]() {
-        cout << "DataChannel from " << partnerId << " open" << endl;
-        DBG("DataChannel from " + partnerId + " open");
-        if (noSend)
-            return;
-
-        if (enableThroughputSet)
-            return;
-
-        if (auto dcLocked = wdc.lock()) {
-            try {
-                while (dcLocked->bufferedAmount() <= bufferSize) {
-                    dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
-                }
-            }
-            catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
-                DBG("Send failed: " << e.what());
-            }
-        }
-    });
-
-    dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-        if (noSend)
-            return;
-
-        if (enableThroughputSet)
-            return;
-
-        auto dcLocked = wdc.lock();
-        if (!dcLocked)
-            return;
-
-        // Continue sending
-        try {
-            while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-                dcLocked->send(messageData);
-                sentSizeMap.at(label) += messageData.size();
-            }
-        }
-        catch (const std::exception& e) {
-            std::cout << "Send failed: " << e.what() << std::endl;
-            DBG("Send failed: " << e.what());
-        }
-    });
-
-    dc->onClosed([partnerId]() { cout << "DataChannel from " << partnerId << " closed" << endl; });
-
-    //a Data Channel, once opened, is bidirectional
-    dc->onMessage([partnerId, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-        if (holds_alternative<binary>(data))
-            receivedSizeMap.at(label) += get<binary>(data).size();
-    });
-
-    dataChannelMap.emplace(label, dc);
-
 };
 
-//function to create and setup PeerConnection
-shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Configuration& config,
-    weak_ptr<WebSocket> wws, string id)
-{
-    auto pc = make_shared<PeerConnection>(config);
+//function to create PeerConnection
+shared_ptr<PeerConnection> createPeerConnection(const Configuration& config,
+        weak_ptr<WebSocket> wws, string id)
+    {
+        auto pc = make_shared<PeerConnection>(config);
 
-    DBG("peertest " + id);
+        pc->onStateChange([](PeerConnection::State state) { cout << "State: " << state << endl; });
 
-    pc->onStateChange([](PeerConnection::State state) {
-        cout << "State: " << state << endl;
-        DBG("onStateChange");
-        });
+        pc->onGatheringStateChange(
+            [](PeerConnection::GatheringState state) { cout << "Gathering State: " << state << endl; });
 
-    pc->onGatheringStateChange(
-        [](PeerConnection::GatheringState state) {
-            DBG("onGatheringStateChange");
-            cout << "Gathering State: " << state << endl;
-        });
+        pc->onLocalDescription([wws, id](Description description) {
+            json message = {
+                {"id", id}, {"type", description.typeString()}, {"description", string(description)} };
 
-    pc->onLocalDescription([wws, id](Description description) {
-        DBG("onLocalDescription");
-        json message = {
-            {"id", id}, {"type", description.typeString()}, {"description", string(description)} };
-
-        if (auto ws = wws.lock())
-            ws->send(message.dump());
-        });
-
-    pc->onLocalCandidate([wws, id](Candidate candidate) {
-        DBG("onLocalCandidate");
-        json message = { {"id", id},
-                        {"type", "candidate"},
-                        {"candidate", string(candidate)},
-                        {"mid", candidate.mid()} };
-
-        if (auto ws = wws.lock())
-            ws->send(message.dump());
-        });
-
-    pc->onDataChannel([id](shared_ptr<DataChannel> dc) {
-        DBG("onDatachannel");
-        const string label = dc->label();
-        DBG("DataChannel from " + id + " received with label \"" + label + "\"");
-
-        DBG("###########################################");
-        DBG("### Check other peer's screen for stats ###");
-        DBG("###########################################");
-
-        receivedSizeMap.emplace(dc->label(), 0);
-        sentSizeMap.emplace(dc->label(), 0);
-
-        // Set Buffer Size
-        dc->setBufferedAmountLowThreshold(bufferSize);
-
-        //Call paint to render partnerIdTextField
-
-        if (!noSend && !enableThroughputSet) {
-            try {
-                while (dc->bufferedAmount() <= bufferSize) {
-                    dc->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
-                }
-            }
-            catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
-                DBG("Send failed: " << e.what());
-            }
-        }
-
-        if (!noSend && enableThroughputSet) {
-            // Create Send Data Thread
-            // Thread will join when data channel destroyed or closed
-            std::thread([wdc = make_weak_ptr(dc), label]() {
-                steady_clock::time_point stepTime = steady_clock::now();
-                // Byte count to send for every loop
-                int byteToSendOnEveryLoop = throughtputSetAsKB * stepDurationInMs;
-                while (true) {
-                    this_thread::sleep_for(milliseconds(stepDurationInMs));
-
-                    auto dcLocked = wdc.lock();
-                    if (!dcLocked)
-                        break;
-
-                    if (!dcLocked->isOpen())
-                        break;
-
-                    try {
-                        const double elapsedTimeInSecs =
-                            std::chrono::duration<double>(steady_clock::now() - stepTime).count();
-
-                        stepTime = steady_clock::now();
-
-                        int byteToSendThisLoop =
-                            static_cast<int>(byteToSendOnEveryLoop *
-                                ((elapsedTimeInSecs * 1000.0) / stepDurationInMs));
-
-                        binary tempMessageData(byteToSendThisLoop);
-                        fill(tempMessageData.begin(), tempMessageData.end(), std::byte(0xFF));
-
-                        if (dcLocked->bufferedAmount() <= bufferSize) {
-                            dcLocked->send(tempMessageData);
-                            sentSizeMap.at(label) += tempMessageData.size();
-                        }
-                    }
-                    catch (const std::exception& e) {
-                        std::cout << "Send failed: " << e.what() << std::endl;
-                        DBG("Send failed: " << e.what());
-                    }
-                }
-                cout << "Send Data Thread exiting..." << endl;
-                DBG("Send Data Thread exiting...");
-            }).detach();
-        }
-
-        dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-            if (noSend)
-                return;
-
-            if (enableThroughputSet)
-                return;
-
-            auto dcLocked = wdc.lock();
-            if (!dcLocked)
-                return;
-
-            // Continue sending
-            try {
-                while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-                    dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
-                }
-            }
-            catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
-                DBG("Send failed: "<< e.what());
-            }
-        });
-
-        dc->onClosed([id]() {
-            cout << "DataChannel from " << id << " closed" << endl;
-            DBG("DataChannel from " << id << " closed");
+            if (auto ws = wws.lock())
+                ws->send(message.dump());
             });
 
-        dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-            if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
-                receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
-        });
+        pc->onLocalCandidate([wws, id](Candidate candidate) {
+            json message = { {"id", id},
+                            {"type", "candidate"},
+                            {"candidate", string(candidate)},
+                            {"mid", candidate.mid()} };
 
-        dataChannelMap.emplace(label, dc);
-        });
+            if (auto ws = wws.lock())
+                ws->send(message.dump());
+            });
 
-    peerConnectionMap.emplace(id, pc);
-    return pc;
+        pc->onDataChannel([id](shared_ptr<DataChannel> dc) {
+            const string label = dc->label();
+            DBG( "DataChannel from " + id + " received with label \"" + label + "\"" );
+        
+            DBG( "###########################################" );
+            DBG( "### Check other peer's screen for stats ###" );
+            DBG( "###########################################" );
 
-    // We are the offerer, so create a data channel to initiate the process
-    
-    /*for (int i = 1; i <= params.dataChannelCount(); i++) {
-        const string label = "DC-" + std::to_string(i);*/
-   
-    /*
-    const string label = "DC-" + std::to_string(1);
-    cout << "Creating DataChannel with label \"" << label << "\"" << endl;
-    DBG("Creating DataChannel with label \"" + label + "\"");
-    auto dc = pc->createDataChannel(label);
-    receivedSizeMap.emplace(label, 0);
-    sentSizeMap.emplace(label, 0);
+            receivedSizeMap.emplace(dc->label(), 0);
+            sentSizeMap.emplace(dc->label(), 0);
 
-    // Set Buffer Size
-    dc->setBufferedAmountLowThreshold(bufferSize);
+            // Set Buffer Size
+            dc->setBufferedAmountLowThreshold(bufferSize);
 
-    dc->onOpen([id, wdc = make_weak_ptr(dc), label]() {
-        cout << "DataChannel from " << id << " open" << endl;
-        if (noSend)
-            return;
-
-        if (enableThroughputSet)
-            return;
-
-        if (auto dcLocked = wdc.lock()) {
-            try {
-                while (dcLocked->bufferedAmount() <= bufferSize) {
-                    dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
+            if (!noSend && !enableThroughputSet) {
+                try {
+                    while (dc->bufferedAmount() <= bufferSize) {
+                        dc->send(messageData);
+                        sentSizeMap.at(label) += messageData.size();
+                    }
+                }
+                catch (const std::exception& e) {
+                    std::cout << "Send failed: " << e.what() << std::endl;
                 }
             }
-            catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
+
+            if (!noSend && enableThroughputSet) {
+                // Create Send Data Thread
+                // Thread will join when data channel destroyed or closed
+                std::thread([wdc = make_weak_ptr(dc), label]() {
+                    steady_clock::time_point stepTime = steady_clock::now();
+                    // Byte count to send for every loop
+                    int byteToSendOnEveryLoop = throughtputSetAsKB * stepDurationInMs;
+                    while (true) {
+                        this_thread::sleep_for(milliseconds(stepDurationInMs));
+
+                        auto dcLocked = wdc.lock();
+                        if (!dcLocked)
+                            break;
+
+                        if (!dcLocked->isOpen())
+                            break;
+
+                        try {
+                            const double elapsedTimeInSecs =
+                                std::chrono::duration<double>(steady_clock::now() - stepTime).count();
+
+                            stepTime = steady_clock::now();
+
+                            int byteToSendThisLoop =
+                                static_cast<int>(byteToSendOnEveryLoop *
+                                    ((elapsedTimeInSecs * 1000.0) / stepDurationInMs));
+
+                            binary tempMessageData(byteToSendThisLoop);
+                            fill(tempMessageData.begin(), tempMessageData.end(), std::byte(0xFF));
+
+                            if (dcLocked->bufferedAmount() <= bufferSize) {
+                                dcLocked->send(tempMessageData);
+                                sentSizeMap.at(label) += tempMessageData.size();
+                            }
+                        }
+                        catch (const std::exception& e) {
+                            std::cout << "Send failed: " << e.what() << std::endl;
+                        }
+                    }
+                    cout << "Send Data Thread exiting..." << endl;
+                }).detach();
             }
-        }
-    });
 
-    dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-        if (noSend)
-            return;
+            dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
+                if (noSend)
+                    return;
 
-        if (enableThroughputSet)
-            return;
+                if (enableThroughputSet)
+                    return;
 
-        auto dcLocked = wdc.lock();
-        if (!dcLocked)
-            return;
+                auto dcLocked = wdc.lock();
+                if (!dcLocked)
+                    return;
 
-        // Continue sending
-        try {
-            while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-                dcLocked->send(messageData);
-                sentSizeMap.at(label) += messageData.size();
-            }
-        }
-        catch (const std::exception& e) {
-            std::cout << "Send failed: " << e.what() << std::endl;
-        }
-    });
+                // Continue sending
+                try {
+                    while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
+                        dcLocked->send(messageData);
+                        sentSizeMap.at(label) += messageData.size();
+                    }
+                }
+                catch (const std::exception& e) {
+                    std::cout << "Send failed: " << e.what() << std::endl;
+                }
+            });
 
-    dc->onClosed([id]() { cout << "DataChannel from " << id << " closed" << endl; });
+            dc->onClosed([id]() { cout << "DataChannel from " << id << " closed" << endl; });
+            
+            dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
+                if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
+                    receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
+            });
 
-    //klären ob ein datachannel bidirektional oder 2 datachannel unidirektional genutzt werden können --> bidirektional
-    dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-        if (holds_alternative<binary>(data))
-            receivedSizeMap.at(label) += get<binary>(data).size();
-    });
+            dataChannelMap.emplace(label, dc);
+            });
 
-    dataChannelMap.emplace(label, dc);
-
-    //};
-
-    */
-}
+        peerConnectionMap.emplace(id, pc);
+        return pc;
+    };
 
 //generate localID
 void MidiRTCAudioProcessor::generateLocalId(size_t length) {
@@ -470,27 +327,29 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // initialisation that you need..
 
     string stunServer = "";
+    Configuration config;
 
 
     generateLocalId(4);
 
-
     ws = make_shared<WebSocket>();
-    
+
     std::promise<void> wsPromise;
     auto wsFuture = wsPromise.get_future();
 
+
+
     ws->onOpen([&wsPromise]() {
-        DBG("WebSocket connected, signaling ready");
+        std::cout << "WebSocket connected, signaling ready" << endl;
         wsPromise.set_value();
         });
 
     ws->onError([&wsPromise](string s) {
-        DBG( "WebSocket error" );
+        std::cout << "WebSocket error" << endl;
         wsPromise.set_exception(std::make_exception_ptr(std::runtime_error(s)));
         });
 
-    ws->onClosed([]() { DBG( "WebSocket closed" ); });
+    ws->onClosed([]() { std::cout << "WebSocket closed" << endl; });
 
     ws->onMessage([&](variant<binary, string> data) {
         if (!holds_alternative<string>(data))
@@ -501,8 +360,7 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         auto it = message.find("id");
         if (it == message.end())
             return;
-        //string id = it->get<string>();
-        setPartnerId(it->get<string>());
+        string id = it->get<string>();
 
         it = message.find("type");
         if (it == message.end())
@@ -510,16 +368,15 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         string type = it->get<string>();
 
         shared_ptr<PeerConnection> pc;
-
         // entweder connection wird nicht erstellt weil schon ID vorhanden (if), verbindung wird
         // erstellt, weil vom typ offer und noch nicht vorhanden(else if), oder Abbruch (else)
 
-        if (auto jt = peerConnectionMap.find(partnerId); jt != peerConnectionMap.end()) {
+
+        if (auto jt = peerConnectionMap.find(id); jt != peerConnectionMap.end()) {
             pc = jt->second; // peer connection wird nicht erstellt, weil mit der ID schon eine
                              // vorhanden ist
         }
         else if (type == "offer") {
-                    DBG("Answering to " + partnerId);
                     //std::cout << "Answering to " + id<< endl;
                     // angegebener ID wird geantwortet -> verbindung aufgebaut
             pc = createPeerConnection(config, ws, partnerId); // peer connection wird erstellt
@@ -539,6 +396,7 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
             pc->addRemoteCandidate(Candidate(sdp, mid));
         }
         });
+    //peerConnection wird erstellt (implementation oben)
 
     //create Websocket
     string wsPrefix = "ws://";
@@ -660,6 +518,8 @@ void MidiRTCAudioProcessor::setStateInformation (const void* data, int sizeInByt
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
 }
+
+
 
 //==============================================================================
 // This creates new instances of the plugin..

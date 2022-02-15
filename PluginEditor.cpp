@@ -83,7 +83,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	localIdLabel.setJustificationType(Justification::centred);
 
 	localIdText.setColour(TextEditor::highlightedTextColourId, Colours::black);
-	localIdText.setColour(TextEditor::backgroundColourId, Colours::myYellow);
+	localIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	localIdText.setColour(TextEditor::highlightColourId, Colours::transparentBlack);
 	localIdText.setFont(Font(17.f, Font::plain));
 	localIdText.setText(audioProcessor.getLocalId(), dontSendNotification);
@@ -101,12 +101,12 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdLabel.setJustificationType(Justification::centred);
 
 	partnerIdText.setColour(TextEditor::textColourId, Colours::black);
-	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::myYellow);
+	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::cornflowerblue);
 	partnerIdText.setFont(Font(17.f, Font::plain));
 	partnerIdText.setInputRestrictions(4);
 	//partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
 	partnerIdText.onReturnKey = [this] { audioProcessor.MidiRTCAudioProcessor::connectToPartner(partnerIdText.getText().toStdString()); };
-	g.setColour(Colours::myYellow);
+	g.setColour(Colours::cornflowerblue);
 	g.fillRect(localIdArea);
 	g.fillRect(partnerIdArea);
 
