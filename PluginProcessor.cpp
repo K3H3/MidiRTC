@@ -70,9 +70,9 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
     }
 
     DBG( "Offering to " + partnerId );
+    pc = createPeerConnection(config, ws, partnerId);
 
-    pc = createPeerConnection(config, wws, partnerId);
-
+    // We are the offerer, so create a data channel to initiate the process
     const string label = "DC-" + std::to_string(1);
     cout << "Creating DataChannel with label \"" << label << "\"" << endl;
     DBG("Creating DataChannel with label \"" + label + "\"");
@@ -295,80 +295,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 
     peerConnectionMap.emplace(id, pc);
     return pc;
-
-    // We are the offerer, so create a data channel to initiate the process
-    
-    /*for (int i = 1; i <= params.dataChannelCount(); i++) {
-        const string label = "DC-" + std::to_string(i);*/
-   
-    /*
-    const string label = "DC-" + std::to_string(1);
-    cout << "Creating DataChannel with label \"" << label << "\"" << endl;
-    DBG("Creating DataChannel with label \"" + label + "\"");
-    auto dc = pc->createDataChannel(label);
-    receivedSizeMap.emplace(label, 0);
-    sentSizeMap.emplace(label, 0);
-
-    // Set Buffer Size
-    dc->setBufferedAmountLowThreshold(bufferSize);
-
-    dc->onOpen([id, wdc = make_weak_ptr(dc), label]() {
-        cout << "DataChannel from " << id << " open" << endl;
-        if (noSend)
-            return;
-
-        if (enableThroughputSet)
-            return;
-
-        if (auto dcLocked = wdc.lock()) {
-            try {
-                while (dcLocked->bufferedAmount() <= bufferSize) {
-                    dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
-                }
-            }
-            catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
-            }
-        }
-    });
-
-    dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-        if (noSend)
-            return;
-
-        if (enableThroughputSet)
-            return;
-
-        auto dcLocked = wdc.lock();
-        if (!dcLocked)
-            return;
-
-        // Continue sending
-        try {
-            while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-                dcLocked->send(messageData);
-                sentSizeMap.at(label) += messageData.size();
-            }
-        }
-        catch (const std::exception& e) {
-            std::cout << "Send failed: " << e.what() << std::endl;
-        }
-    });
-
-    dc->onClosed([id]() { cout << "DataChannel from " << id << " closed" << endl; });
-
-    //klären ob ein datachannel bidirektional oder 2 datachannel unidirektional genutzt werden können --> bidirektional
-    dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-        if (holds_alternative<binary>(data))
-            receivedSizeMap.at(label) += get<binary>(data).size();
-    });
-
-    dataChannelMap.emplace(label, dc);
-
-    //};
-
-    */
 }
 
 //generate localID
