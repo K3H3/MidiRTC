@@ -29,6 +29,7 @@ binary messageData(messageSize);
 unordered_map<string, atomic<size_t>> receivedSizeMap;
 unordered_map<string, atomic<size_t>> sentSizeMap;
 
+
 bool noSend = false;
 bool enableThroughputSet;
 int throughtputSetAsKB;
@@ -44,6 +45,11 @@ string MidiRTCAudioProcessor::getLocalId()
     return localId;
 }
 
+string MidiRTCAudioProcessor::getPartnerId()
+{
+    return partnerId;
+}
+
 void MidiRTCAudioProcessor::setLocalId(string localId)
 {
     this->localId = localId;
@@ -54,7 +60,7 @@ void MidiRTCAudioProcessor::setPartnerId(string partnerId)
     this->partnerId = partnerId;
 }
 
-void MidiRTCAudioProcessor::connectToPartner(string partnerId)
+void MidiRTCAudioProcessor::connectToPartner()
 {
     auto pc = make_shared<PeerConnection>(config);
     DBG("Waiting for signaling to be connected...");
@@ -68,30 +74,33 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
         DBG("Invalid remote ID (This is my local ID). Exiting...");
         return;
     }
+    if (partnerId.length() != 4) {
+        DBG("fuck this shit im out");
+        return;
+    }
 
     DBG( "Offering to " + partnerId );
     pc = createPeerConnection(config, ws, partnerId);
-
+    
     // We are the offerer, so create a data channel to initiate the process
     const string label = "DC-" + std::to_string(1);
-    cout << "Creating DataChannel with label \"" << label << "\"" << endl;
     DBG("Creating DataChannel with label \"" + label + "\"");
     auto dc = pc->createDataChannel(label);
     receivedSizeMap.emplace(label, 0);
     sentSizeMap.emplace(label, 0);
+    connected = true;
 
     // Set Buffer Size
     dc->setBufferedAmountLowThreshold(bufferSize);
 
-    dc->onOpen([partnerId, wdc = make_weak_ptr(dc), label]() {
-        cout << "DataChannel from " << partnerId << " open" << endl;
+    dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
         DBG("DataChannel from " + partnerId + " open");
         if (noSend)
             return;
 
         if (enableThroughputSet)
             return;
-
+        
         if (auto dcLocked = wdc.lock()) {
             try {
                 while (dcLocked->bufferedAmount() <= bufferSize) {
@@ -100,7 +109,6 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
                 }
             }
             catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
                 DBG("Send failed: " << e.what());
             }
         }
@@ -125,15 +133,16 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
             }
         }
         catch (const std::exception& e) {
-            std::cout << "Send failed: " << e.what() << std::endl;
             DBG("Send failed: " << e.what());
         }
     });
 
-    dc->onClosed([partnerId]() { cout << "DataChannel from " << partnerId << " closed" << endl; });
+    dc->onClosed([this]() { cout << "DataChannel from " << partnerId << " closed" << endl; 
+    connected = false;
+        });
 
     //a Data Channel, once opened, is bidirectional
-    dc->onMessage([partnerId, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
+    dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
         if (holds_alternative<binary>(data))
             receivedSizeMap.at(label) += get<binary>(data).size();
     });
@@ -148,21 +157,16 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 {
     auto pc = make_shared<PeerConnection>(config);
 
-    DBG("peertest " + id);
-
     pc->onStateChange([](PeerConnection::State state) {
         cout << "State: " << state << endl;
-        DBG("onStateChange");
         });
 
     pc->onGatheringStateChange(
         [](PeerConnection::GatheringState state) {
-            DBG("onGatheringStateChange");
             cout << "Gathering State: " << state << endl;
         });
 
     pc->onLocalDescription([wws, id](Description description) {
-        DBG("onLocalDescription");
         json message = {
             {"id", id}, {"type", description.typeString()}, {"description", string(description)} };
 
@@ -171,7 +175,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
         });
 
     pc->onLocalCandidate([wws, id](Candidate candidate) {
-        DBG("onLocalCandidate");
         json message = { {"id", id},
                         {"type", "candidate"},
                         {"candidate", string(candidate)},
@@ -181,8 +184,8 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             ws->send(message.dump());
         });
 
-    pc->onDataChannel([id](shared_ptr<DataChannel> dc) {
-        DBG("onDatachannel");
+    pc->onDataChannel([this, id](shared_ptr<DataChannel> dc) {
+        connected = true;
         const string label = dc->label();
         DBG("DataChannel from " + id + " received with label \"" + label + "\"");
 
@@ -195,8 +198,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 
         // Set Buffer Size
         dc->setBufferedAmountLowThreshold(bufferSize);
-
-        //Call paint to render partnerIdTextField
 
         if (!noSend && !enableThroughputSet) {
             try {
@@ -394,6 +395,9 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+
+    // construct message to send
+    fill(messageData.begin(), messageData.end(), std::byte(0xFF));
 
     string stunServer = "";
 

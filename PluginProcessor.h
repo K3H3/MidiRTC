@@ -70,10 +70,16 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     std::string getLocalId();
+    std::string getPartnerId();
     void setPartnerId(std::string partnerId);
-    void connectToPartner(std::string partnerId);
+    void connectToPartner();
+    
+    bool isConnected() {
+        return connected;
+    };
     
 private:
+    bool connected = false;
     rtc::Configuration config;
     std::weak_ptr<rtc::WebSocket> wws;
     std::shared_ptr<rtc::WebSocket> ws;
