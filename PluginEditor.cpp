@@ -66,7 +66,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	String partnerIdLabelDescription{ "Partner ID: " };
 
 	//draw background
-	//g.fillAll(Colours::myYellow);
+	//g.fillAll(Colours::lighyellow);
 
 	//handle connection status with colours
 	if (audioProcessor.isConnected())
@@ -76,7 +76,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	}
 	else
 	{
-		g.setColour(Colours::myPink);
+		g.setColour(Colours::lightpink);
 	}
 
 	g.fillRect(headerArea);
@@ -97,7 +97,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	localIdLabel.setJustificationType(Justification::centred);
 
 	localIdText.setColour(TextEditor::highlightedTextColourId, Colours::black);
-	localIdText.setColour(TextEditor::backgroundColourId, Colours::myYellow);
+	localIdText.setColour(TextEditor::backgroundColourId, Colours::lightyellow);
 	localIdText.setColour(TextEditor::highlightColourId, Colours::transparentBlack);
 	localIdText.setFont(Font(17.f, Font::plain));
 	localIdText.setText(audioProcessor.getLocalId(), dontSendNotification);
@@ -115,7 +115,7 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdLabel.setJustificationType(Justification::centred);
 
 	partnerIdText.setColour(TextEditor::textColourId, Colours::black);
-	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::myYellow);
+	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::lightyellow);
 	partnerIdText.setFont(Font(17.f, Font::plain));
 	partnerIdText.setText(audioProcessor.getPartnerId(), dontSendNotification);
 	partnerIdText.setInputRestrictions(4);
@@ -124,12 +124,12 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 
 
 	//draw and fill IDAreas
-	g.setColour(Colours::myYellow);
+	g.setColour(Colours::lightyellow);
 	g.fillRect(localIdArea);
 	g.fillRect(partnerIdArea);
 
 	//draw input field
-	g.setColour(Colours::myBlue);
+	g.setColour(Colours::cornflowerblue);
 	g.fillRect(inputVolumeArea);
 
 	//draw external field
