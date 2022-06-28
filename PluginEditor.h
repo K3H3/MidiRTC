@@ -31,6 +31,8 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+    //void setPartnerIdRemote();
+    //void fillPartnerId(string partnerId);
 
 private:
     void sliderValueChanged(juce::Slider* slider) override;

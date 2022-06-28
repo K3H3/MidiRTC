@@ -70,10 +70,24 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     std::string getLocalId();
+    std::string getPartnerId();
     void setPartnerId(std::string partnerId);
-    void connectToPartner(std::string partnerId);
+    void connectToPartner();
+    
+    bool isConnected() {
+        return connected;
+    };
     
 private:
+    //binary byteBuffer();
+    //juce::MemoryOutputStream byteStream{7};
+    //std::promise<void> wsPromise;
+    //std::future<void> wsFuture;
+
+    std::uint8_t expRunNum = 0;
+    std::uint8_t runningNum = 0;
+    bool connected = false;
+    bool sending = false;
     rtc::Configuration config;
     std::weak_ptr<rtc::WebSocket> wws;
     std::shared_ptr<rtc::WebSocket> ws;
@@ -82,12 +96,14 @@ private:
         std::weak_ptr<rtc::WebSocket> wws, std::string id);
     std::string localId;
     std::string partnerId;
+    juce::MidiMessage midiDummy;
 
-    //std::promise<void> wsPromise;
-    //std::future<void> wsFuture;
-
+    juce::MidiMessage recreateMidiMessage(rtc::binary messageData);
     void setLocalId(std::string localId);
     void generateLocalId(size_t length);
+    void resetRunningNum() {
+        runningNum = 0;
+    };
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
 };

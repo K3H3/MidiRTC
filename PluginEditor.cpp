@@ -66,7 +66,20 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	String partnerIdLabelDescription{ "Partner ID: " };
 
 	//draw background
-	g.fillAll(Colours::myYellow);
+	//g.fillAll(Colours::myYellow);
+
+	//handle connection status with colours
+	if (audioProcessor.isConnected())
+	{
+		repaint();
+		g.setColour(Colours::palegreen);
+	}
+	else
+	{
+		g.setColour(Colours::myPink);
+	}
+
+	g.fillRect(headerArea);
 
 	//draw header field
 	g.setColour(Colours::black);
@@ -74,9 +87,10 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	g.setFont(Font(17.f, Font::plain));
 	g.drawFittedText(generalDescription, 0, 0, getWidth(), getHeight(), Justification::centredTop, 1);
 
+
 	//draw info and ID field
 	//localIdLabelDescription is the field on the left
-	//localIdText ist the localId
+	//localIdText is the localId
 	localIdLabel.attachToComponent(&localIdText, true);
 	localIdLabel.setColour(Label::textColourId, Colours::black);
 	localIdLabel.setText(localIdLabelDescription, dontSendNotification);
@@ -103,9 +117,13 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	partnerIdText.setColour(TextEditor::textColourId, Colours::black);
 	partnerIdText.setColour(TextEditor::backgroundColourId, Colours::myYellow);
 	partnerIdText.setFont(Font(17.f, Font::plain));
+	partnerIdText.setText(audioProcessor.getPartnerId(), dontSendNotification);
 	partnerIdText.setInputRestrictions(4);
-	//partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
-	partnerIdText.onReturnKey = [this] { audioProcessor.MidiRTCAudioProcessor::connectToPartner(partnerIdText.getText().toStdString()); };
+	partnerIdText.onTextChange = [this] { audioProcessor.setPartnerId(partnerIdText.getText().toStdString()); };
+	partnerIdText.onReturnKey = [this] { audioProcessor.connectToPartner(); };
+
+
+	//draw and fill IDAreas
 	g.setColour(Colours::myYellow);
 	g.fillRect(localIdArea);
 	g.fillRect(partnerIdArea);
@@ -115,9 +133,25 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	g.fillRect(inputVolumeArea);
 
 	//draw external field
-	g.setColour(Colours::myPink);
+	g.setColour(Colours::cornflowerblue);
 	g.fillRect(outputVolumeArea);
+
+
 }
+
+/*
+PluginProcessor:
+- bool connected = false
+- bei Verbindungsaufbau (beide richtungen) connected = true;
+- public bool isConnected() {return connected}
+
+PluginEditor:
+if(audioProcessor.isConnected()) {
+	g.fillAll(Colours::myGreen);
+} else {
+	g.fillAll(Colours::myRed);
+}
+*/
 
 void MidiRTCAudioProcessorEditor::resized()
 {
