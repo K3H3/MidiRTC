@@ -26,8 +26,8 @@ std::unordered_map<std::string, std::shared_ptr<rtc::DataChannel>> dataChannelMa
 
 const size_t messageSize = 65535;
 binary messageData(messageSize);
-unordered_map<string, atomic<size_t>> receivedSizeMap;
-unordered_map<string, atomic<size_t>> sentSizeMap;
+//unordered_map<string, atomic<size_t>> receivedSizeMap;
+//unordered_map<string, atomic<size_t>> sentSizeMap;
 
 bool noSend = false;
 bool enableThroughputSet;
@@ -77,8 +77,8 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
     cout << "Creating DataChannel with label \"" << label << "\"" << endl;
     DBG("Creating DataChannel with label \"" + label + "\"");
     auto dc = pc->createDataChannel(label);
-    receivedSizeMap.emplace(label, 0);
-    sentSizeMap.emplace(label, 0);
+    //receivedSizeMap.emplace(label, 0);
+    //sentSizeMap.emplace(label, 0);
 
     // Set Buffer Size
     dc->setBufferedAmountLowThreshold(bufferSize);
@@ -96,7 +96,7 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
             try {
                 while (dcLocked->bufferedAmount() <= bufferSize) {
                     dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
+                    //sentSizeMap.at(label) += messageData.size();
                 }
             }
             catch (const std::exception& e) {
@@ -121,7 +121,7 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
         try {
             while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
                 dcLocked->send(messageData);
-                sentSizeMap.at(label) += messageData.size();
+                //sentSizeMap.at(label) += messageData.size();
             }
         }
         catch (const std::exception& e) {
@@ -134,8 +134,8 @@ void MidiRTCAudioProcessor::connectToPartner(string partnerId)
 
     //a Data Channel, once opened, is bidirectional
     dc->onMessage([partnerId, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-        if (holds_alternative<binary>(data))
-            receivedSizeMap.at(label) += get<binary>(data).size();
+        //if (holds_alternative<binary>(data))
+            //receivedSizeMap.at(label) += get<binary>(data).size();
     });
 
     dataChannelMap.emplace(label, dc);
@@ -190,8 +190,8 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
         DBG("### Check other peer's screen for stats ###");
         DBG("###########################################");
 
-        receivedSizeMap.emplace(dc->label(), 0);
-        sentSizeMap.emplace(dc->label(), 0);
+        //receivedSizeMap.emplace(dc->label(), 0);
+        //sentSizeMap.emplace(dc->label(), 0);
 
         // Set Buffer Size
         dc->setBufferedAmountLowThreshold(bufferSize);
@@ -202,7 +202,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             try {
                 while (dc->bufferedAmount() <= bufferSize) {
                     dc->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
+                    //sentSizeMap.at(label) += messageData.size();
                 }
             }
             catch (const std::exception& e) {
@@ -243,7 +243,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 
                         if (dcLocked->bufferedAmount() <= bufferSize) {
                             dcLocked->send(tempMessageData);
-                            sentSizeMap.at(label) += tempMessageData.size();
+                            //sentSizeMap.at(label) += tempMessageData.size();
                         }
                     }
                     catch (const std::exception& e) {
@@ -271,7 +271,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             try {
                 while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
                     dcLocked->send(messageData);
-                    sentSizeMap.at(label) += messageData.size();
+                    //sentSizeMap.at(label) += messageData.size();
                 }
             }
             catch (const std::exception& e) {
@@ -286,8 +286,8 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             });
 
         dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-            if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
-                receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
+            //if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
+                //receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
         });
 
         dataChannelMap.emplace(label, dc);
@@ -544,7 +544,8 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     string wsPrefix = "ws://";
 
     //"127.0.0.1:8000" hardcoded
-    const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
+    //const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
+    const string url = wsPrefix + "192.168.178.50:8000" + "/" + localId;
     DBG( "Url is " + url);
     //own websocket is opened
     ws->open(url);
