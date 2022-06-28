@@ -354,6 +354,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 
             //if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
                 //receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
+
         });
 
         dataChannelMap.emplace(label, dc);
