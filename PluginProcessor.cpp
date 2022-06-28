@@ -54,8 +54,6 @@ string MidiRTCAudioProcessor::getPartnerId()
 //recreate Midi Message from vector of bytes (rtc binary)
 juce::MidiMessage MidiRTCAudioProcessor::recreateMidiMessage(rtc::binary messageData)
 {
-    
-
     DBG("recreation:");
     DBG(static_cast <uint8_t> (messageData[1]));
     midiDummy = juce::MidiMessage::noteOn(1, (int)messageData[1], (juce::uint8)messageData[2]);
@@ -161,9 +159,17 @@ void MidiRTCAudioProcessor::connectToPartner()
 
     //a Data Channel, once opened, is bidirectional
     dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
+        uint8_t temp = static_cast <uint8_t> (messageData[0]);
 
-        recreateMidiMessage(messageData);
-        
+        if(temp = expRunNum){
+            recreateMidiMessage(messageData);
+            expRunNum++;
+        }
+
+        else {
+            return;
+        }
+
         //if (holds_alternative<binary>(data))
             //receivedSizeMap.at(label) += get<binary>(data).size();
     });
@@ -226,6 +232,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
                     if (sending) {
                         for (int i = 0; i < 2; i = i + 1){
                             dc->send(messageData);
+                            DBG("for send dc->buffered");
                         }
                         //sentSizeMap.at(label) += messageData.size();
                         sending = !sending;
@@ -307,6 +314,8 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             // Continue sending
             try {
                 while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
+                    DBG("Double sending: L318");
+                    dcLocked->send(messageData);
                     dcLocked->send(messageData);
 
                     DBG("MessageData sent: ");
@@ -327,13 +336,21 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             });
 
         dc->onMessage([id, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-            
-            DBG("setup pc dc->onMessage");
+            DBG("Receive: dc->onMessage");
             DBG(static_cast <uint8_t> (messageData[0]));
             DBG(static_cast <uint8_t> (messageData[1]));
             DBG(static_cast <uint8_t> (messageData[2]));
 
-            //recreateMidiMessage(messageData);
+            /*
+            if (static_cast <uint8_t> (messageData[0]) == expRunNum) {
+                recreateMidiMessage(messageData);
+                expRunNum++;
+            }
+
+            else {
+                return;
+            }
+            */
 
             //if (holds_alternative<binary>(data)) //erkennung von binären Daten --> true
                 //receivedSizeMap.at(label) += get<binary>(data).size(); //hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
@@ -521,7 +538,9 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     string wsPrefix = "ws://";
 
     //"127.0.0.1:8000" hardcoded
-    const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
+    const string url = wsPrefix + "192.168.178.50:8080" + "/" + localId;   // 192.168.178.38:8000 = k3h3pi wifi adresse
+
+    //const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
     DBG( "Url is " + url);
     //own websocket is opened
     ws->open(url);
@@ -568,15 +587,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     juce::MidiBuffer processedMidi;
 
-    /*
-    to do:
-    - runningNum in byteBuffer
-    - doppelt senden
-
-    - beim Empfangen:
-    schauen ob runningNum = erwartete runningNum (Übergang von 65535 auf 0 beachten) -> empfangen
-    if runningNum = letzte runningNum -> nichts machen
-    */
 
 	for (const auto metadata : midiMessages)
 	{
@@ -594,7 +604,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 			byteBuffer = { (byte)runningNum,(byte)noteNumber, (byte)velocity };
 
 			DBG(runningNum);
-
 
             messageData = byteBuffer;
 

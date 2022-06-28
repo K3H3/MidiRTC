@@ -83,6 +83,8 @@ private:
     //juce::MemoryOutputStream byteStream{7};
     //std::promise<void> wsPromise;
     //std::future<void> wsFuture;
+
+    std::uint8_t expRunNum = 0;
     std::uint8_t runningNum = 0;
     bool connected = false;
     bool sending = false;
