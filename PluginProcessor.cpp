@@ -26,9 +26,6 @@ std::unordered_map<std::string, std::shared_ptr<rtc::DataChannel>> dataChannelMa
 
 const size_t messageSize = 65535;
 binary messageData(messageSize);
-//unordered_map<string, atomic<size_t>> receivedSizeMap;
-//unordered_map<string, atomic<size_t>> sentSizeMap;
-
 
 bool noSend = false;
 bool enableThroughputSet;
@@ -50,20 +47,15 @@ string MidiRTCAudioProcessor::getPartnerId()
     return partnerId;
 }
 
-
 //recreate Midi Message from vector of bytes (rtc binary)
 juce::MidiMessage MidiRTCAudioProcessor::recreateMidiMessage(rtc::binary messageData)
 {
     DBG("recreation:");
     DBG(static_cast <uint8_t> (messageData[1]));
     midiDummy = juce::MidiMessage::noteOn(1, (int)messageData[1], (juce::uint8)messageData[2]);
-    //midiDummy.setNoteNumber(static_cast <uint8_t> (messageData[1]));
-    //midiDummy.setNoteNumber(10);
     DBG("New NoteNumber = " << midiDummy.getNoteNumber());
     DBG("New Velocity = " << midiDummy.getVelocity());
     return juce::MidiMessage(midiDummy);
-
-    //return juce::MidiMessage();
 }
 
 
@@ -102,8 +94,6 @@ void MidiRTCAudioProcessor::connectToPartner()
     const string label = "DC-" + std::to_string(1);
     DBG("Creating DataChannel with label \"" + label + "\"");
     auto dc = pc->createDataChannel(label);
-    //receivedSizeMap.emplace(label, 0);
-    //sentSizeMap.emplace(label, 0);
     connected = true;
 
     // Set Buffer Size
@@ -121,7 +111,6 @@ void MidiRTCAudioProcessor::connectToPartner()
             try {
                 while (dcLocked->bufferedAmount() <= bufferSize) {
                     dcLocked->send(messageData);
-                    //sentSizeMap.at(label) += messageData.size();
                 }
             }
             catch (const std::exception& e) {
@@ -145,7 +134,6 @@ void MidiRTCAudioProcessor::connectToPartner()
         try {
             while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
                 dcLocked->send(messageData);
-                //sentSizeMap.at(label) += messageData.size();
             }
         }
         catch (const std::exception& e) {
@@ -169,9 +157,6 @@ void MidiRTCAudioProcessor::connectToPartner()
         else {
             return;
         }
-
-        //if (holds_alternative<binary>(data))
-            //receivedSizeMap.at(label) += get<binary>(data).size();
     });
 
     dataChannelMap.emplace(label, dc);
@@ -220,9 +205,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
         DBG("### Check other peer's screen for stats ###");
         DBG("###########################################");
 
-        //receivedSizeMap.emplace(dc->label(), 0);
-        //sentSizeMap.emplace(dc->label(), 0);
-
         // Set Buffer Size
         dc->setBufferedAmountLowThreshold(bufferSize);
 
@@ -232,11 +214,8 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
                     if (sending) {
                         for (int i = 0; i < 2; i = i + 1){
                             dc->send(messageData);
-                            DBG("for send dc->buffered");
                         }
-                        //sentSizeMap.at(label) += messageData.size();
                         sending = !sending;
-                        //DBG("sending(done): " << (sending ? "true" : "false"));
                     }
                 }
             }
@@ -244,61 +223,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
                 DBG("Send failed: " << e.what());
             }
         }
-        
-        /*
-        if (!noSend && enableThroughputSet) {
-            DBG("!noSend && enableThroughputSet");
-            // Create Send Data Thread
-            // Thread will join when data channel destroyed or closed
-            std::thread([wdc = make_weak_ptr(dc), label]() {
-                steady_clock::time_point stepTime = steady_clock::now();
-                // Byte count to send for every loop
-                int byteToSendOnEveryLoop = throughtputSetAsKB * stepDurationInMs;
-                while (true) {
-                    this_thread::sleep_for(milliseconds(stepDurationInMs));
-
-                    auto dcLocked = wdc.lock();
-                    if (!dcLocked)
-                        DBG("!dcLocked");
-                        break;
-
-                    if (!dcLocked->isOpen())
-                        DBG("!dcLocked->isOpen");
-                        break;
-
-                    try {
-                        const double elapsedTimeInSecs =
-                            std::chrono::duration<double>(steady_clock::now() - stepTime).count();
-                            
-
-                        stepTime = steady_clock::now();
-
-                        int byteToSendThisLoop = 3;
-                            
-                            static_cast<int>(byteToSendOnEveryLoop *
-                                ((elapsedTimeInSecs * 1000.0) / stepDurationInMs));
-                                
-                        binary tempMessageData(byteToSendThisLoop);
-                        fill(tempMessageData.begin(), tempMessageData.end(), std::byte(0xFF));
-                        DBG("tempMessageData filled");
-
-                        if (dcLocked->bufferedAmount() <= bufferSize) {
-                            dcLocked->send(tempMessageData);
-                            sentSizeMap.at(label) += tempMessageData.size();
-                            DBG("dcLocked->bufferedAmount() <= bufferSize");
-                        }
-                    }
-                    catch (const std::exception& e) {
-                        std::cout << "Send failed: " << e.what() << std::endl;
-                        DBG("Send failed: " << e.what());
-                    }
-                }
-                cout << "Send Data Thread exiting..." << endl;
-                DBG("Send Data Thread exiting...");
-            }).detach();
-        }
-        */
-        
 
         dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
             if (noSend)
@@ -314,20 +238,19 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             // Continue sending
             try {
                 while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-                    DBG("Double sending: L318");
-                    dcLocked->send(messageData);
-                    dcLocked->send(messageData);
+                    DBG("Double sending: L241");
+                    for (int i = 0; i < 2; i = i + 1) {
+                        dcLocked->send(messageData);
+                    }
 
                     DBG("MessageData sent: ");
                     DBG(static_cast <uint8_t> (messageData[0]));
                     DBG(static_cast <uint8_t> (messageData[1]));
                     DBG(static_cast <uint8_t> (messageData[2]));
-                    //sentSizeMap.at(label) += messageData.size();
                 }
             }
             catch (const std::exception& e) {
-                std::cout << "Send failed: " << e.what() << std::endl;
-                DBG("Send failed: "<< e.what());
+                DBG("Sending failed: "<< e.what());
             }
         });
 
@@ -342,6 +265,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
             DBG(static_cast <uint8_t> (messageData[2]));
 
             /*
+            TO DO
             if (static_cast <uint8_t> (messageData[0]) == expRunNum) {
                 recreateMidiMessage(messageData);
                 expRunNum++;
@@ -466,9 +390,9 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // initialisation that you need..
 
     // construct message to send
-    string stunServer = "";
+	string stunServer = "";
 
-    generateLocalId(4);
+	generateLocalId(4);
 
 
     ws = make_shared<WebSocket>();
@@ -497,7 +421,6 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         auto it = message.find("id");
         if (it == message.end())
             return;
-        //string id = it->get<string>();
         setPartnerId(it->get<string>());
 
         it = message.find("type");
@@ -538,10 +461,9 @@ void MidiRTCAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     //create Websocket
     string wsPrefix = "ws://";
 
-    //"127.0.0.1:8000" hardcoded
     const string url = wsPrefix + "192.168.178.50:8080" + "/" + localId;   // 192.168.178.38:8000 = k3h3pi wifi adresse
-
     //const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
+
     DBG( "Url is " + url);
     //own websocket is opened
     ws->open(url);
