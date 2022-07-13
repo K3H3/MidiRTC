@@ -88,9 +88,11 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 	g.drawFittedText(generalDescription, 0, 0, getWidth(), getHeight(), Justification::centredTop, 1);
 
 
-	//draw info and ID field
-	//localIdLabelDescription is the field on the left
-	//localIdText is the localId
+	/*
+	draw infoand ID field
+	localIdLabelDescription is the field on the left
+	localIdText is the localId
+	*/
 	localIdLabel.attachToComponent(&localIdText, true);
 	localIdLabel.setColour(Label::textColourId, Colours::black);
 	localIdLabel.setText(localIdLabelDescription, dontSendNotification);
@@ -139,20 +141,6 @@ void MidiRTCAudioProcessorEditor::paint(juce::Graphics& g)
 
 }
 
-/*
-PluginProcessor:
-- bool connected = false
-- bei Verbindungsaufbau (beide richtungen) connected = true;
-- public bool isConnected() {return connected}
-
-PluginEditor:
-if(audioProcessor.isConnected()) {
-	g.fillAll(Colours::myGreen);
-} else {
-	g.fillAll(Colours::myRed);
-}
-*/
-
 void MidiRTCAudioProcessorEditor::resized()
 {
 	// This is generally where you'll want to lay out the positions of any
@@ -174,23 +162,3 @@ void MidiRTCAudioProcessorEditor::resized()
 	outputVolumeArea = bounds;
 	midiOutputVolumeSlider.setBounds(outputVolumeArea.withTrimmedRight(outputVolumeArea.getWidth() * 0.8).reduced(3));
 }
-
-//13.12 HALBFERTIG
-//void LookAndFeel::drawLinearSlider(juce::Graphics& g,
-//    int x, int y, int width, int height,
-//    float sliderPos,
-//    float minSliderPos,
-//    float maxSliderPos,
-//    const juce::Slider::SliderStyle,
-//    juce::Slider& slider)
-//{
-//    using namespace juce;
-//
-//    auto bounds = Rectangle<float>(x, y, width, height);
-//
-//    auto enabled = slider.isEnabled();
-//
-//    g.setColour(enabled ? Colour(0u, 95u, 106u) : Colours::petrol);
-//    g.fillEllipse(bounds);
-//
-//}

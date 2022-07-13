@@ -31,7 +31,6 @@ class MidiRTCAudioProcessor  : public juce::AudioProcessor
 {
 public:
     float noteOnVel;
-    
     //==============================================================================
     MidiRTCAudioProcessor();
     ~MidiRTCAudioProcessor() override;
@@ -76,14 +75,13 @@ public:
     
     bool isConnected() {
         return connected;
-    };
-    
+    };    
+
 private:
-    //binary byteBuffer();
-    //juce::MemoryOutputStream byteStream{7};
     //std::promise<void> wsPromise;
     //std::future<void> wsFuture;
 
+    //const String label;
     std::uint8_t expRunNum = 0;
     std::uint8_t runningNum = 0;
     bool connected = false;
@@ -104,6 +102,7 @@ private:
     void resetRunningNum() {
         runningNum = 0;
     };
+    void listenAndRecreate();
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
 };
