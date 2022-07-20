@@ -77,12 +77,13 @@ public:
         return connected;
     };    
 
+    std::uint8_t expRunNum = 0;
+
 private:
     //std::promise<void> wsPromise;
     //std::future<void> wsFuture;
 
     //const String label;
-    std::uint8_t expRunNum = 0;
     std::uint8_t runningNum = 0;
     bool connected = false;
     bool sending = false;
@@ -102,7 +103,6 @@ private:
     void resetRunningNum() {
         runningNum = 0;
     };
-    void listenAndRecreate();
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
 };

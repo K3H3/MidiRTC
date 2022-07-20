@@ -1,8 +1,6 @@
 /*
   ==============================================================================
-
 	This file contains the basic framework code for a JUCE plugin processor.
-
 	Parts of this code were adapted and customized from Paul-Louis Ageneau (libdatachannel)
   ==============================================================================
 */
@@ -24,9 +22,12 @@ using json = nlohmann::json;
 std::unordered_map<std::string, std::shared_ptr<rtc::PeerConnection>> peerConnectionMap;
 std::unordered_map<std::string, std::shared_ptr<rtc::DataChannel>> dataChannelMap;
 
-const size_t messageSize = 65535;
+//const size_t messageSize = 65535;
+const size_t messageSize = 255;
 binary messageData(messageSize);
 
+bool noSend = false;
+bool enableThroughputSet;
 int throughtputSetAsKB;
 int bufferSize;
 
@@ -49,7 +50,6 @@ string MidiRTCAudioProcessor::getPartnerId()
 juce::MidiMessage MidiRTCAudioProcessor::recreateMidiMessage(rtc::binary messageData)
 {
 	DBG("recreation:");
-	DBG(static_cast <uint8_t> (messageData[1]));
 	midiDummy = juce::MidiMessage::noteOn(1, (int)messageData[1], (juce::uint8)messageData[2]);
 	DBG("New NoteNumber = " << midiDummy.getNoteNumber());
 	DBG("New Velocity = " << midiDummy.getVelocity());
@@ -119,10 +119,17 @@ void MidiRTCAudioProcessor::connectToPartner()
 	dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
 		DBG("DataChannel from " + partnerId + " open");
 
+		if (noSend)
+			return;
+
+		if (enableThroughputSet)
+			return;
+
 		if (auto dcLocked = wdc.lock()) {
 			try {
 				while (dcLocked->bufferedAmount() <= bufferSize) {
 					dcLocked->send(messageData);
+					DBG("dcLocked->send(messageData) x 18");
 				}
 			}
 			catch (const std::exception& e) {
@@ -132,7 +139,13 @@ void MidiRTCAudioProcessor::connectToPartner()
 	});
 
 	dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-		
+
+		if (noSend)
+			return;
+
+		if (enableThroughputSet)
+			return;
+
 		auto dcLocked = wdc.lock();
 		if (!dcLocked)
 			return;
@@ -155,9 +168,7 @@ void MidiRTCAudioProcessor::connectToPartner()
 	//a Data Channel, once opened, is bidirectional
 	//dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
 	dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-		DBG("dc->onMessage");
-
-		DBG("message received");
+		DBG("dc->onMessage&");
 
 		if (static_cast<uint8_t> (messageData[0]) == expRunNum) {
 			recreateMidiMessage(messageData);
@@ -236,16 +247,20 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 		// Set Buffer Size
 		dc->setBufferedAmountLowThreshold(bufferSize);
 
-		if (sending) {
+		if (!noSend && !enableThroughputSet) {
 			try {
 				while (dc->bufferedAmount() <= bufferSize) {
-					for (int i = 0; i < 2; i++) {
-						dc->send(messageData);
-						DBG("220");
+					if (sending) {
+						for (int i = 0; i < 2; i++) {
+							dc->send(messageData);
+						}
+						messageData.clear();
+						DBG("remote partner");
+						sending = !sending;
 					}
-					sending = !sending;
 				}
 			}
+
 			catch (const std::exception& e) {
 				DBG("Send failed: " << e.what());
 			}
@@ -254,6 +269,12 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 		//dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
 		dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]() {
 
+			if (noSend)
+				return;
+
+			if (enableThroughputSet)
+				return;
+
 			auto dcLocked = wdc.lock();
 			if (!dcLocked)
 				return;
@@ -261,23 +282,16 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 			// Continue sending
 			try {
 				while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-					DBG("Double sending: L241");
+					DBG("Double sending: L282");
 					if (sending) {
 						for (int i = 0; i < 2; i++) {
-							dc->send(messageData);
+							dcLocked->send(messageData);
+							DBG("sending BufAmoLow 286");
 						}
 						sending = !sending;
+						DBG("sending = !sending");
 					}
-					for (int i = 0; i < 2; i = i + 1) {
-						dcLocked->send(messageData);
-						DBG("BufferedAmountLow1");
-						DBG("BufferedAmountLow2");
-					}
-
-					DBG("MessageData sent: ");
-					DBG(static_cast <uint8_t> (messageData[0]));
-					DBG(static_cast <uint8_t> (messageData[1]));
-					DBG(static_cast <uint8_t> (messageData[2]));
+					DBG("not sending, while loop");
 				}
 			}
 			catch (const std::exception& e) {
@@ -293,15 +307,17 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 		//dc->onMessage([&](variant<binary, string> data){
 		dc->onMessage([&, id, wdc = make_weak_ptr(dc), label](variant<binary, string> data){
 			DBG("Receive: dc->onMessage");
-			DBG(static_cast <uint8_t> (messageData[0]));
-			DBG(static_cast <uint8_t> (messageData[1]));
-			DBG(static_cast <uint8_t> (messageData[2]));
-
+			/*
+			DBG(static_cast <uint8_t> (data[0]));
+			DBG(static_cast <uint8_t> (data[1]));
+			DBG(static_cast <uint8_t> (data[2]));
+			*/
 			if (static_cast <uint8_t>(messageData[0]) == expRunNum) {
 				recreateMidiMessage(messageData);
 				expRunNum++;
 			}
 			else {
+				DBG("already received this message");
 				return;
 			}
 
@@ -528,9 +544,10 @@ bool MidiRTCAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) c
 
 void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+	
 	buffer.clear();
 
-	binary byteBuffer(3);
+	//binary byteBuffer(3);
 
 	juce::MidiBuffer processedMidi;
 
@@ -547,14 +564,14 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 			uint8 noteNumber = message.getNoteNumber();
 			uint8 velocity = message.getVelocity();
 
-			byteBuffer = { (byte)runningNum,(byte)noteNumber, (byte)velocity };
+			//byteBuffer = { (byte)runningNum,(byte)noteNumber, (byte)velocity };
 
 			DBG(runningNum);
 
-			messageData = byteBuffer;
+			//messageData = byteBuffer;
+			messageData = { (byte)runningNum,(byte)noteNumber, (byte)velocity };
 
 			sending = true;
-			
 
 			if (runningNum == 255)
 			{
@@ -564,13 +581,12 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
 		processedMidi.addEvent(message, time);
 	}
+
 	/*
-		dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-		DBG("dc->onMessage");
-
+	dc->onMessage([wdc = make_weak_ptr(dc), label](binary data) {
+		DBG("dc->onMessage PERMAUNTEN");
 		DBG("message received");
-
-		if (static_cast<uint8_t> (messageData[0]) == expRunNum) {
+		if (static_cast<uint8_t> (data[0]) = expRunNum) {
 			recreateMidiMessage(messageData);
 			expRunNum++;
 		}
@@ -579,6 +595,7 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 		}
 	});
 	*/
+
 	midiMessages.swapWith(processedMidi);
 }
 
@@ -586,7 +603,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 	juce::ScopedNoDenormals noDenormals;
 	auto totalNumInputChannels  = getTotalNumInputChannels();
 	auto totalNumOutputChannels = getTotalNumOutputChannels();
-
 	// In case we have more outputs than inputs, this code clears any output
 	// channels that didn't contain input data, (because these aren't
 	// guaranteed to be empty - they may contain garbage).
@@ -595,7 +611,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 	// this code if your algorithm always overwrites all the output channels.
 	for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
 		buffer.clear (i, 0, buffer.getNumSamples());
-
 	// This is the place where you'd normally do the guts of your plugin's
 	// audio processing...
 	// Make sure to reset the state if your inner loop is processing
@@ -605,7 +620,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 	for (int channel = 0; channel < totalNumInputChannels; ++channel)
 	{
 		auto* channelData = buffer.getWritePointer (channel);
-
 		// ..do something to the data...
 	}
 }
