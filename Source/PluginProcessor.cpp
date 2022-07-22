@@ -129,7 +129,6 @@ void MidiRTCAudioProcessor::connectToPartner()
 			try {
 				while (dcLocked->bufferedAmount() <= bufferSize) {
 					dcLocked->send(messageData);
-					DBG("dcLocked->send(messageData) x 18");
 				}
 			}
 			catch (const std::exception& e) {
@@ -168,12 +167,21 @@ void MidiRTCAudioProcessor::connectToPartner()
 	//a Data Channel, once opened, is bidirectional
 	//dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
 	dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-		DBG("dc->onMessage&");
+		
 
-		if (static_cast<uint8_t> (messageData[0]) == expRunNum) {
-			recreateMidiMessage(messageData);
-			expRunNum++;
+		if (auto temp = std::get_if<binary>(&data)) {
+			//if ((static_cast<uint8_t>(temp[0])) == expRunNum) {
+			//  if (static_cast<uint8_t> (data[0]) == expRunNum) {
+			//	recreateMidiMessage(data);
+			//	expRunNum++;
+			//}
+			DBG("innit");
 		}
+
+		if (auto temp = std::get_if<string>(&data)) {
+			return;
+		}
+		
 		else {
 			return;
 		}
@@ -255,7 +263,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 							dc->send(messageData);
 						}
 						messageData.clear();
-						DBG("remote partner");
+						DBG("message sent twice");
 						sending = !sending;
 					}
 				}
@@ -303,7 +311,7 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 			DBG("DataChannel from " << id << " closed");
 			});
 
-		//hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
+		//hier kommen binÃ¤re Daten an -> Midi auslesen und weiterverarbeiten
 		//dc->onMessage([&](variant<binary, string> data){
 		dc->onMessage([&, id, wdc = make_weak_ptr(dc), label](variant<binary, string> data){
 			DBG("Receive: dc->onMessage");
