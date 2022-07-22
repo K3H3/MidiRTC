@@ -116,7 +116,8 @@ void MidiRTCAudioProcessor::connectToPartner()
 	}
 	*/
 
-	dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
+	//dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
+	dc->onOpen([&, wdc = make_weak_ptr(dc), label]() {
 		DBG("DataChannel from " + partnerId + " open");
 
 		if (noSend)
@@ -137,8 +138,9 @@ void MidiRTCAudioProcessor::connectToPartner()
 		}
 	});
 
-	dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
-
+	//dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
+	dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]() {
+		
 		if (noSend)
 			return;
 
@@ -152,7 +154,13 @@ void MidiRTCAudioProcessor::connectToPartner()
 		// Continue sending
 		try {
 			while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
-				dcLocked->send(messageData);
+				if (sending) {
+					dcLocked->send(messageData);
+					DBG(static_cast<uint8_t> (messageData[0]));
+					DBG(static_cast<uint8_t> (messageData[1]));
+					DBG(static_cast<uint8_t> (messageData[2]));
+					sending = !sending;
+				}
 			}
 		}
 		catch (const std::exception& e) {
@@ -225,23 +233,6 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 			ws->send(message.dump());
 		});
 
-	/*
-	if (sending) {
-		try {
-			while (dc->bufferedAmount() <= bufferSize) {
-				for (int i = 0; i < 2; i++) {
-					dc->send(messageData);
-					DBG("220");
-				}
-				sending = !sending;
-			}
-		}
-		catch (const std::exception& e) {
-			DBG("Send failed: " << e.what());
-		}
-	}
-	*/
-
 	//pc->onDataChannel([this, id](shared_ptr<DataChannel> dc) {
 	pc->onDataChannel([&, id](shared_ptr<DataChannel> dc) {
 		connected = true;
@@ -259,16 +250,15 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 			try {
 				while (dc->bufferedAmount() <= bufferSize) {
 					if (sending) {
+						DBG("this is the remote - sender");
 						for (int i = 0; i < 2; i++) {
 							dc->send(messageData);
 						}
 						messageData.clear();
-						DBG("message sent twice");
 						sending = !sending;
 					}
 				}
 			}
-
 			catch (const std::exception& e) {
 				DBG("Send failed: " << e.what());
 			}
