@@ -129,7 +129,15 @@ void MidiRTCAudioProcessor::connectToPartner()
 		if (auto dcLocked = wdc.lock()) {
 			try {
 				while (dcLocked->bufferedAmount() <= bufferSize) {
-					dcLocked->send(messageData);
+					if(sending){
+						for (int i = 0; i < 2; i++) {
+							dcLocked->send(messageData);
+						}
+						DBG(static_cast<uint8_t> (messageData[0]));
+						DBG(static_cast<uint8_t> (messageData[1]));
+						DBG(static_cast<uint8_t> (messageData[2]));
+						sending = !sending;
+					}
 				}
 			}
 			catch (const std::exception& e) {
@@ -175,7 +183,6 @@ void MidiRTCAudioProcessor::connectToPartner()
 	//a Data Channel, once opened, is bidirectional
 	//dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
 	dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-		
 
 		if (auto temp = std::get_if<binary>(&data)) {
 			//if ((static_cast<uint8_t>(temp[0])) == expRunNum) {
@@ -544,8 +551,6 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 {
 	
 	buffer.clear();
-
-	//binary byteBuffer(3);
 
 	juce::MidiBuffer processedMidi;
 
