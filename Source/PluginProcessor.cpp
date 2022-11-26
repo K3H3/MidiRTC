@@ -8,6 +8,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#define crcpp_uint8
+#include "CRC.h"
+
 
 using namespace juce;
 //==============================================================================
@@ -22,17 +25,16 @@ using json = nlohmann::json;
 std::unordered_map<std::string, std::shared_ptr<rtc::PeerConnection>> peerConnectionMap;
 std::unordered_map<std::string, std::shared_ptr<rtc::DataChannel>> dataChannelMap;
 
-const size_t messageSize = 65535;
-//const size_t messageSize = 255;
-binary messageData(messageSize);
+const size_t MessageSize = 65535;
+//const size_t MessageSize = 255;
+binary messageData(MessageSize);
+binary valueData(MessageSize);
 
-//bool noSend = false;
-//bool enableThroughputSet;
 int throughtputSetAsKB;
 int bufferSize;
 
-const float STEP_COUNT_FOR_1_SEC = 100.0;
-const int stepDurationInMs = int(1000 / STEP_COUNT_FOR_1_SEC);
+const float StepCountFor1Sec = 100.0;
+const int stepDurationInMs = int(1000 / StepCountFor1Sec);
 
 template <class T> weak_ptr<T> make_weak_ptr(shared_ptr<T> ptr) { return ptr; }
 
@@ -49,13 +51,11 @@ string MidiRTCAudioProcessor::getPartnerId()
 //recreate Midi Message from vector of bytes (rtc binary)
 juce::MidiMessage MidiRTCAudioProcessor::recreateMidiMessage(rtc::binary messageData)
 {
-	DBG("recreation:");
-	midiDummy = juce::MidiMessage::noteOn(1, (int)messageData[1], (juce::uint8)messageData[2]);
+	auto midiDummy = juce::MidiMessage::noteOn (1, (uint8_t)messageData[1], (juce::uint8)messageData[2]);
 	DBG("New NoteNumber = " << midiDummy.getNoteNumber());
 	DBG("New Velocity = " << midiDummy.getVelocity());
-	return juce::MidiMessage(midiDummy);
+	return midiDummy;
 }
-
 
 void MidiRTCAudioProcessor::setLocalId(string localId)
 {
@@ -94,9 +94,6 @@ void MidiRTCAudioProcessor::connectToPartner()
 	auto dc = pc->createDataChannel(label);
 	connected = true;
 
-	// Set Buffer Size
-	dc->setBufferedAmountLowThreshold(bufferSize);
-
 	/*
 	if (sending) {
 		try {
@@ -116,20 +113,18 @@ void MidiRTCAudioProcessor::connectToPartner()
 	}
 	*/
 
-	//dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
+	// Set Buffer Size
+	dc->setBufferedAmountLowThreshold(bufferSize);
+
 	dc->onOpen([&, wdc = make_weak_ptr(dc), label]() {
+	//dc->onOpen([this, wdc = make_weak_ptr(dc), label]() {
 		DBG("DataChannel from " + partnerId + " open");
-
-		//if (noSend)
-		//	return;
-
-		//if (enableThroughputSet)
-		//	return;
-
+		
 		if (auto dcLocked = wdc.lock()) {
 			try {
 				while (dcLocked->bufferedAmount() <= bufferSize) {
 					if(sending){
+						//always sending twice for redundancy
 						for (int i = 0; i < 2; i++) {
 							dcLocked->send(messageData);
 						}
@@ -148,13 +143,8 @@ void MidiRTCAudioProcessor::connectToPartner()
 
 	//dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
 	dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]() {
-		DBG("dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]");
-		
-		//if (noSend)
-		//	return;
 
-		//if (enableThroughputSet)
-		//	return;
+		DBG("dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]");
 
 		auto dcLocked = wdc.lock();
 		if (!dcLocked)
@@ -165,12 +155,8 @@ void MidiRTCAudioProcessor::connectToPartner()
 			while (dcLocked->isOpen() && dcLocked->bufferedAmount() <= bufferSize) {
 				if (sending) {
 					dcLocked->send(messageData);
-					DBG(static_cast<uint8_t> (messageData[0]));
-					DBG(static_cast<uint8_t> (messageData[1]));
-					DBG(static_cast<uint8_t> (messageData[2]));
 					sending = !sending;
 				}
-				
 			}
 		}
 		catch (const std::exception& e) {
@@ -182,27 +168,27 @@ void MidiRTCAudioProcessor::connectToPartner()
 	connected = false;
 		});
 
+
 	//a Data Channel, once opened, is bidirectional
 	//dc->onMessage([this, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-	//dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {
-	dc->onMessage([&, this, wdc = make_weak_ptr(dc), label](variant <binary, string> data){
-		DBG("outta");
-		if (auto temp = std::get_if<binary>(&data)) {
-			//if ((static_cast<uint8_t>(temp[0])) == expRunNum) {
-			//  if (static_cast<uint8_t> (data[0]) == expRunNum) {
-			//	recreateMidiMessage(data);
-			//	expRunNum++;
-			//}
-			DBG("innit");
+	dc->onMessage([&, wdc = make_weak_ptr(dc), label](variant<binary, string> data) {	
+
+		DBG("in onMessage");
+		
+		//if data is binary
+		if (const binary* temp = std::get_if<binary>(&data)) {
+			if (static_cast<uint8_t> ((*temp)[0]) == expRunNum){
+			  recreateMidiMessage(*temp);
+			  expRunNum++;
+			}
 		}
 
-		if (auto temp = std::get_if<string>(&data)) {
+		//if data is a String
+		else if (auto temp = std::get_if<string>(&data))
+		{
 			return;
 		}
 		
-		else {
-			return;
-		}
 	});
 
 	dataChannelMap.emplace(label, dc);
@@ -212,6 +198,8 @@ void MidiRTCAudioProcessor::connectToPartner()
 shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Configuration& config,
 	weak_ptr<WebSocket> wws, string id)
 {
+
+	DBG("State: asdasdasdasd");
 	auto pc = make_shared<PeerConnection>(config);
 
 	pc->onStateChange([](PeerConnection::State state) {
@@ -256,32 +244,17 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 		// Set Buffer Size
 		dc->setBufferedAmountLowThreshold(bufferSize);
 
-		//if (!noSend && !enableThroughputSet) {
-			try {
-				while (dc->bufferedAmount() <= bufferSize) {
-				
-					if (sending) {
-						DBG("this is the remote - sender");
-						for (int i = 0; i < 2; i++) {
-							dc->send(messageData);
-						}
-						messageData.clear();
-						sending = !sending;
-					}
-				}
+		if (sending) {
+			DBG("this is the remote - sender");
+			for (int i = 0; i < 2; i++) {
+				dc->send(messageData);
 			}
-			catch (const std::exception& e) {
-				DBG("Send failed: " << e.what());
-			}
-		//}
+			messageData.clear();
+			sending = !sending;
+		}
 
 		//dc->onBufferedAmountLow([wdc = make_weak_ptr(dc), label]() {
 		dc->onBufferedAmountLow([&, wdc = make_weak_ptr(dc), label]() {
-			//if (noSend)
-			//	return;
-
-			//if (enableThroughputSet)
-			//	return;
 
 			auto dcLocked = wdc.lock();
 			if (!dcLocked)
@@ -311,17 +284,59 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 			DBG("DataChannel from " << id << " closed");
 			});
 
-		//hier kommen binäre Daten an -> Midi auslesen und weiterverarbeiten
-		//dc->onMessage([&](variant<binary, string> data){
-		
-		
+		//hier kommen binaries und strings an -> Midi als binary auslesen und weiterverarbeiten
 		dc->onMessage([&, id, wdc = make_weak_ptr(dc), label](variant<binary, string> data){
 			DBG("Receive: dc->onMessage");
+
+			//Prototyp 4
+			if (const binary* temp = std::get_if<binary>(&data)) {
+				auto tempRunNum = static_cast<uint8_t>((*temp)[0]);
+				auto tempNoteNumber = static_cast<uint8_t>((*temp)[1]);
+				auto tempVelocity = static_cast<uint8_t>((*temp)[2]);
+				auto tempCrc = static_cast<uint8_t>((*temp)[3]);
+
+				string valueDataString = to_string(tempRunNum) + to_string(tempNoteNumber) + to_string(tempVelocity);
+
+				std::uint8_t crc = CRC::Calculate(valueDataString.c_str(), sizeof(valueDataString.c_str()), CRC::CRC_8());
+
+				if (crc == tempCrc) {
+					DBG("NOICCE");
+				}
+				else {
+					DBG("DAMN");
+				}
+
+			}
+
+			/*
+			//Prototyp 3
+			if (const binary* temp = std::get_if<binary>(&data)) {
+
+				myMapKey = static_cast<uint8_t>((*temp)[0]);
+
+				myMapValue mapValue;
+
+				mapValue.myNoteNumber = static_cast<uint8_t>((*temp)[1]);
+				mapValue.myVelocity = static_cast<uint8_t>((*temp)[2]);
+
+				compareMap.insert(std::make_pair(myMapKey, mapValue));
+
+
+			}
+			*/
+
+			/*
+			//Prototyp 2
+			if (const binary* temp = std::get_if<binary>(&data)) {
+				if (static_cast<uint8_t> ((*temp)[0]) == expRunNum) {
+					recreateMidiMessage(*temp);
+					expRunNum++;
+				}
+			}
+			*/
+
 			/*
 			binary temp = &data[0];
-			DBG(static_cast <uint8_t> (data[0]));
-			DBG(static_cast <uint8_t> (data[1]));
-			DBG(static_cast <uint8_t> (data[2]));
 
 			if (static_cast <uint8_t>(data[0]) = expRunNum) {
 				recreateMidiMessage(data);
@@ -343,6 +358,14 @@ shared_ptr<PeerConnection> MidiRTCAudioProcessor::createPeerConnection(const Con
 	peerConnectionMap.emplace(id, pc);
 	return pc;
 }
+
+
+
+//compare received MIDI-Messages
+/*void compareMessages(rtc::binary messageData) {
+	if(tempRunNum == messageData[0])
+}
+*/
 
 //generate localID
 void MidiRTCAudioProcessor::generateLocalId(size_t length) {
@@ -447,7 +470,6 @@ void MidiRTCAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
 	generateLocalId(4);
 
-
 	ws = make_shared<WebSocket>();
 
 	std::promise<void> wsPromise;
@@ -467,26 +489,34 @@ void MidiRTCAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
 	ws->onMessage([&](variant<binary, string> data) {
 		if (!holds_alternative<string>(data))
+		{
 			return;
+		}
 
 		json message = json::parse(get<string>(data));
 
 		auto it = message.find("id");
 		if (it == message.end())
+		{
 			return;
+		}
 		setPartnerId(it->get<string>());
 
 		it = message.find("type");
 		if (it == message.end())
+		{
 			return;
+		}
+		
 		string type = it->get<string>();
-
 		shared_ptr<PeerConnection> pc;
-
+		
 		// entweder connection wird nicht erstellt weil schon ID vorhanden (if), verbindung wird
 		// erstellt, weil vom typ offer und noch nicht vorhanden(else if), oder Abbruch (else)
 
-		if (auto jt = peerConnectionMap.find(partnerId); jt != peerConnectionMap.end()) {
+		
+		if (auto jt = peerConnectionMap.find(partnerId); jt != peerConnectionMap.end())
+		{
 			pc = jt->second; // peer connection wird nicht erstellt, weil mit der ID schon eine
 							 // vorhanden ist
 		}
@@ -495,9 +525,11 @@ void MidiRTCAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 			// angegebener ID wird geantwortet -> verbindung aufgebaut
 			pc = createPeerConnection(config, ws, partnerId); // peer connection wird erstellt
 		}
-		else {
+		else
+		{
 			return;
 		}
+		
 
 		// wird aufgerufen, wenn verbindung bereits besteht
 		if (type == "offer" || type == "answer") {
@@ -514,10 +546,11 @@ void MidiRTCAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 	//create Websocket
 	string wsPrefix = "ws://";
 
-	const string url = wsPrefix + "192.168.178.50:8080" + "/" + localId;   // 192.168.178.38:8000 = k3h3pi wifi adresse
+	const string url = wsPrefix + "192.168.178.50:8080" + "/" + localId;   // 192.168.178.50:8080 = k3h3pi address
 	//const string url = wsPrefix + "127.0.0.1:8000" + "/" + localId;
 
 	DBG("Url is " + url);
+
 	//own websocket is opened
 	ws->open(url);
 	wsFuture.get();
@@ -569,20 +602,26 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
 		if (message.isNoteOn())
 		{
-			runningNum++;
-
 			//uint8 midiChannel = message.getMidiChannelMetaEventChannel();
-			uint8 noteNumber = message.getNoteNumber();
-			uint8 velocity = message.getVelocity();
+			uint8_t noteNumber = message.getNoteNumber();
+			uint8_t velocity = message.getVelocity();
+
+			string valueDataString = to_string(runningNum) + to_string(noteNumber) + to_string(velocity);
+
+			DBG(valueDataString);
+
+			std::uint8_t crc = CRC::Calculate(valueDataString.c_str(), sizeof(valueDataString.c_str()), CRC::CRC_8());
 
 			DBG(runningNum);
 
-			//messageData = byteBuffer;
-			messageData = { (byte)runningNum,(byte)noteNumber, (byte)velocity };
+			messageData = {(byte)runningNum, (byte)noteNumber, (byte)velocity, (byte)crc};
+			
 
 			sending = true;
 
-			if (runningNum == 255)
+			runningNum++;
+
+			if (runningNum == 250)
 			{
 				resetRunningNum();
 			}
@@ -590,21 +629,18 @@ void MidiRTCAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
 		processedMidi.addEvent(message, time);
 	}
-
 	/*
-	dc->onMessage([wdc = make_weak_ptr(dc), label](binary data) {
-		DBG("dc->onMessage PERMAUNTEN");
-		DBG("message received");
-		if (static_cast<uint8_t> (data[0]) = expRunNum) {
-			recreateMidiMessage(messageData);
-			expRunNum++;
-		}
-		else {
-			return;
+	dc->onMessage([&, wdc = make_weak_ptr(dc)](variant<binary, string> data){
+		DBG("Receive: dc->onMessage");
+
+		if (const binary* temp = std::get_if<binary>(&data)) {
+			if (static_cast<uint8_t> ((*temp)[0]) == expRunNum) {
+				recreateMidiMessage(*temp);
+				expRunNum++;
+			}
 		}
 	});
 	*/
-
 	midiMessages.swapWith(processedMidi);
 }
 

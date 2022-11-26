@@ -79,6 +79,13 @@ public:
 
     std::uint8_t expRunNum = 0;
 
+    //struct myMapValue{
+    //    uint8_t myNoteNumber;
+    //    uint8_t myVelocity;
+    //};
+
+    //uint8_t myMapKey;
+
 private:
     //std::promise<void> wsPromise;
     //std::future<void> wsFuture;
@@ -95,7 +102,6 @@ private:
         std::weak_ptr<rtc::WebSocket> wws, std::string id);
     std::string localId;
     std::string partnerId;
-    juce::MidiMessage midiDummy;
 
     juce::MidiMessage recreateMidiMessage(rtc::binary messageData);
     void setLocalId(std::string localId);
@@ -103,6 +109,8 @@ private:
     void resetRunningNum() {
         runningNum = 0;
     };
+
+    //std::map <uint8_t, myMapValue> compareMap;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiRTCAudioProcessor)
 };
